@@ -1,0 +1,67 @@
+.chart-window-container {
+    --radius: 4px;
+    width: 50%;
+    height: 60%;
+    background: #fff;
+    position: absolute;
+    bottom: 20%;
+    left: 25%;
+    cursor: move;
+    box-sizing: border-box;
+    z-index: 200;
+    border-radius: var(--radius);
+    border: 1px solid rgb(238, 238, 238);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-window-container .header {
+    width: 100%;
+    background: #4184f3;
+    box-sizing: border-box;
+    padding: 10px 16px;
+    border-top-left-radius: var(--radius);
+    border-top-right-radius: var(--radius);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chart-window-container .header h3 {
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 500;
+    margin: 0;
+}
+
+.chart-window-container .header h3 span {
+    font-size: 0.6rem;
+    margin-left: 5px;
+    opacity: 0.8;
+}
+
+.chart-window-container .close-btn {
+    background: transparent;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.chart-window-container .close-btn:hover {
+    color: #000;
+}
+
+.chart-content {
+    flex: 1;
+    padding: 20px;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    cursor: default;
+    /* Don't show move cursor on chart part */
+}

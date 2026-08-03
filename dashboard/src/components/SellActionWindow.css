@@ -1,0 +1,196 @@
+.sell-window-container {
+    --radius: 4px;
+    width: 30%;
+    /* height: 55%; */
+    background: #fff;
+    position: absolute;
+    bottom: 20%;
+    left: 35%;
+    cursor: move;
+    box-sizing: border-box;
+    z-index: 200;
+    border-radius: var(--radius);
+    border: 1px solid rgb(238, 238, 238);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sell-window-container .header {
+    width: 100%;
+    background: #ff5722;
+    /* Red for Sell */
+    box-sizing: border-box;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sell-window-container .header .title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sell-window-container .header h3 {
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 500;
+    margin: 0;
+}
+
+.sell-window-container .header h3 span {
+    font-size: 0.6rem;
+    margin-left: 5px;
+    opacity: 0.8;
+}
+
+.sell-window-container .header .price-tag {
+    color: #fff;
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+.sell-window-container .close-btn {
+    background: transparent;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    padding: 0;
+}
+
+.sell-window-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.inputs-section {
+    display: flex;
+    gap: 15px;
+}
+
+.inputs-section fieldset {
+    flex: 1;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0;
+    margin: 0;
+    position: relative;
+    height: 45px;
+}
+
+.inputs-section fieldset legend {
+    font-size: 0.75rem;
+    color: #888;
+    margin-left: 10px;
+    padding: 0 5px;
+}
+
+.inputs-section fieldset input {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    padding: 0 10px;
+    font-size: 1rem;
+    outline: none;
+    box-sizing: border-box;
+    /* Adjust position to align with legend */
+    position: absolute;
+    top: 5px;
+}
+
+/* Market Depth Table */
+.market-depth {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.8rem;
+}
+
+.depth-header {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    color: #999;
+    margin-bottom: 5px;
+    text-align: right;
+}
+
+.depth-header span:nth-child(1),
+.depth-header span:nth-child(4) {
+    text-align: left;
+}
+
+
+.depth-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    margin-bottom: 4px;
+    text-align: right;
+    color: #444;
+}
+
+.depth-row span:nth-child(1),
+.depth-row span:nth-child(4) {
+    text-align: left;
+}
+
+.depth-row .blue {
+    color: #4184f3;
+}
+
+.depth-row .red {
+    color: #ff5722;
+}
+
+
+.buttons-section {
+    padding: 15px 20px;
+    background: #f9f9f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #eee;
+}
+
+.margin-info span {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.sell-window-container .btn-red {
+    background: #ff5722;
+    color: #fff;
+}
+
+.sell-window-container .btn-red:hover {
+    background: #e64a19;
+}
+
+.btn-grey {
+    background: #e0e0e0;
+    color: #444;
+}
+
+.btn-grey:hover {
+    background: #d0d0d0;
+}

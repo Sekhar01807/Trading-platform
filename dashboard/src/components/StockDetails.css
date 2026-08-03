@@ -1,0 +1,121 @@
+.details-window-container {
+    --radius: 4px;
+    width: 35%;
+    height: 70%;
+    background: #fff;
+    position: absolute;
+    bottom: 10%;
+    left: 40%;
+    cursor: move;
+    box-sizing: border-box;
+    z-index: 200;
+    border-radius: var(--radius);
+    border: 1px solid rgb(238, 238, 238);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+}
+
+.details-window-container .header {
+    width: 100%;
+    background: #4184f3;
+    box-sizing: border-box;
+    padding: 10px 16px;
+    border-top-left-radius: var(--radius);
+    border-top-right-radius: var(--radius);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.details-window-container .header h3 {
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 500;
+    margin: 0;
+}
+
+.details-window-container .header h3 span {
+    font-size: 0.6rem;
+    margin-left: 5px;
+    opacity: 0.8;
+}
+
+.details-window-container .close-btn {
+    background: transparent;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.details-content {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    cursor: default;
+}
+
+.performance-row {
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 20px;
+}
+
+.performance-row .item {
+    text-align: center;
+}
+
+.performance-row .item span {
+    display: block;
+    font-size: 0.75rem;
+    color: #999;
+    margin-bottom: 4px;
+}
+
+.performance-row .item p {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stat-item small {
+    color: #777;
+    font-size: 0.8rem;
+}
+
+.stat-item p {
+    color: #333;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.about-section h4 {
+    font-size: 0.95rem;
+    color: #444;
+    margin-bottom: 8px;
+}
+
+.about-section p {
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.5;
+}
