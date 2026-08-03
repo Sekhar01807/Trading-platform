@@ -1,8 +1,7 @@
 import React, { useState, useRef } from "react";
 import CloseIcon from '@mui/icons-material/Close';
-
-
 import axios from "axios";
+import { toast } from "react-toastify";
 
 import "./BuyActionWindow.css";
 
@@ -16,7 +15,6 @@ const BuyActionWindow = ({ uid, closeBuyWindow }) => {
   const dragStart = useRef({ x: 0, y: 0 });
 
   const handleMouseDown = (e) => {
-    // Prevent dragging if clicking on inputs or buttons
     if (e.target.tagName === "INPUT" || e.target.tagName === "BUTTON") {
       return;
     }
@@ -44,15 +42,24 @@ const BuyActionWindow = ({ uid, closeBuyWindow }) => {
     document.removeEventListener("mouseup", handleMouseUp);
   };
 
-  const handleBuyClick = () => {
-    axios.post("http://localhost:3000/newOrders", {
-      name: uid,
-      qty: Number(stockQuantity),
-      price: Number(stockPrice),
-      mode: "BUY",
-    });
-
-    closeBuyWindow();
+  const handleBuyClick = async () => {
+    try {
+      await axios.post(
+        "http://localhost:3000/newOrders",
+        {
+          name: uid,
+          qty: Number(stockQuantity),
+          price: Number(stockPrice) > 0 ? Number(stockPrice) : 1450,
+          mode: "BUY",
+        },
+        { withCredentials: true }
+      );
+      toast.success(`Bought ${stockQuantity} share(s) of ${uid}!`);
+      closeBuyWindow();
+    } catch (err) {
+      toast.error("Failed to place buy order.");
+      closeBuyWindow();
+    }
   };
 
   const handleCancelClick = () => {
@@ -145,7 +152,6 @@ const BuyActionWindow = ({ uid, closeBuyWindow }) => {
           </div>
         </div>
       </div>
-
 
       <div className="buttons-section">
         <div className="margin-info">

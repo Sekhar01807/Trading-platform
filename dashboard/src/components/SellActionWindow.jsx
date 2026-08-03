@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import CloseIcon from '@mui/icons-material/Close';
 import axios from "axios";
+import { toast } from "react-toastify";
 
 import "./SellActionWindow.css";
 
@@ -14,7 +15,6 @@ const SellActionWindow = ({ uid, closeSellWindow }) => {
     const dragStart = useRef({ x: 0, y: 0 });
 
     const handleMouseDown = (e) => {
-        // Prevent dragging if clicking on inputs or buttons
         if (e.target.tagName === "INPUT" || e.target.tagName === "BUTTON") {
             return;
         }
@@ -42,15 +42,24 @@ const SellActionWindow = ({ uid, closeSellWindow }) => {
         document.removeEventListener("mouseup", handleMouseUp);
     };
 
-    const handleSellClick = () => {
-        axios.post("http://localhost:3000/newOrders", {
-            name: uid,
-            qty: Number(stockQuantity),
-            price: Number(stockPrice),
-            mode: "SELL",
-        });
-
-        closeSellWindow();
+    const handleSellClick = async () => {
+        try {
+            await axios.post(
+                "http://localhost:3000/newOrders",
+                {
+                    name: uid,
+                    qty: Number(stockQuantity),
+                    price: Number(stockPrice) > 0 ? Number(stockPrice) : 1450,
+                    mode: "SELL",
+                },
+                { withCredentials: true }
+            );
+            toast.success(`Sold ${stockQuantity} share(s) of ${uid}!`);
+            closeSellWindow();
+        } catch (err) {
+            toast.error("Failed to place sell order.");
+            closeSellWindow();
+        }
     };
 
     const handleCancelClick = () => {
@@ -144,7 +153,6 @@ const SellActionWindow = ({ uid, closeSellWindow }) => {
                 </div>
             </div>
 
-
             <div className="buttons-section">
                 <div className="margin-info">
                     <span>Margin: ₹{(Number(stockQuantity) * (Number(stockPrice) || 1450) / 5).toFixed(2)}</span>
@@ -153,7 +161,7 @@ const SellActionWindow = ({ uid, closeSellWindow }) => {
                     <button className="btn btn-red" onClick={handleSellClick}>
                         Sell
                     </button>
-                    <button className="btn btn-red" onClick={handleCancelClick}>
+                    <button className="btn btn-grey" onClick={handleCancelClick}>
                         Cancel
                     </button>
                 </div>
