@@ -15,6 +15,18 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: [true, "Your password is required"],
     },
+    phone: {
+        type: String,
+        default: "",
+    },
+    bio: {
+        type: String,
+        default: "",
+    },
+    funds: {
+        type: Number,
+        default: 0,
+    },
     createdAt: {
         type: Date,
         default: new Date(),

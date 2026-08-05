@@ -3,7 +3,7 @@ import React from 'react';
 function Hero() {
     return (
         <div className='container py-4'>
-            {/* Top Brand Header (Replaces Navbar) */}
+            {/* Top Brand Header */}
             <div className='d-flex justify-content-between align-items-center py-3 mb-4 border-bottom'>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <div style={{
@@ -29,14 +29,14 @@ function Hero() {
                 <div className='d-flex gap-3'>
                     <a 
                         href="http://localhost:5173/login" 
-                        className='btn btn-outline-secondary px-3 py-2'
-                        style={{ borderRadius: "8px", fontWeight: "600", fontSize: "0.9rem", borderColor: "#CBD5E1", color: "#475569" }}
+                        className='btn btn-outline-scale px-3 py-2'
+                        style={{ borderRadius: "8px", fontWeight: "600", fontSize: "0.9rem", border: "1px solid #CBD5E1", color: "#475569" }}
                     >
                         Sign In
                     </a>
                     <a 
                         href="http://localhost:5173/signup" 
-                        className='btn btn-primary px-4 py-2 shadow-sm'
+                        className='btn btn-primary btn-scale px-4 py-2 shadow-sm'
                         style={{ background: "#3B82F6", borderColor: "#3B82F6", borderRadius: "8px", fontWeight: "600", fontSize: "0.9rem" }}
                     >
                         Get Started
@@ -47,19 +47,6 @@ function Hero() {
             {/* Hero Main Content */}
             <div className='row justify-content-center align-items-center text-center py-5'>
                 <div className='col-lg-10'>
-                    {/* Updated Header Badge */}
-                    <div className='mb-4'>
-                        <span className="badge rounded-pill px-3 py-2" style={{
-                            background: "#EFF6FF",
-                            color: "#2563EB",
-                            fontSize: "0.9rem",
-                            fontWeight: "600",
-                            border: "1px solid #BFDBFE"
-                        }}>
-                            ⚡ High-Speed Stock Market Data & Intelligent Order Execution
-                        </span>
-                    </div>
-
                     {/* Headline */}
                     <h1 className='display-4 fw-bold text-dark mb-3' style={{ letterSpacing: "-1px" }}>
                         The Next-Gen Stock Trading & <br />
@@ -81,7 +68,7 @@ function Hero() {
                     <div className='d-flex justify-content-center gap-3 mb-4'>
                         <a 
                             href="http://localhost:5173/signup" 
-                            className='btn btn-primary btn-lg px-4 py-3 shadow'
+                            className='btn btn-primary btn-scale btn-lg px-4 py-3 shadow'
                             style={{
                                 background: "linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)",
                                 border: "none",
@@ -94,12 +81,12 @@ function Hero() {
                         </a>
                         <a 
                             href="http://localhost:5173/login" 
-                            className='btn btn-outline-secondary btn-lg px-4 py-3'
+                            className='btn btn-outline-scale px-4 py-3'
                             style={{
                                 borderRadius: "10px",
                                 fontWeight: "600",
                                 fontSize: "1rem",
-                                borderColor: "#CBD5E1",
+                                border: "1px solid #CBD5E1",
                                 color: "#475569"
                             }}
                         >

@@ -8,17 +8,24 @@ import TopBar from "./TopBar";
 
 const Home = () => {
     const navigate = useNavigate();
-    const [cookies, removeCookie] = useCookies([]);
+    const [cookies, setCookie, removeCookie] = useCookies(["token"]);
     const [user, setUser] = useState({ username: "", email: "", id: "" });
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const toastShown = useRef(false);
+
+    const clearAuth = () => {
+        localStorage.removeItem("token");
+        removeCookie("token", { path: "/" });
+        document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    };
 
     useEffect(() => {
         const verifyCookie = async () => {
             const token = localStorage.getItem("token") || cookies.token;
             if (!token) {
                 console.log("No token found, redirecting to login");
-                navigate("/login");
+                clearAuth();
+                navigate("/login", { replace: true });
                 return;
             }
             try {
@@ -32,12 +39,12 @@ const Home = () => {
                     }
                 );
                 console.log("Backend response:", data);
-                const { status, user: username, email, id } = data;
+                const { status, user: username, email, phone, bio, id, createdAt } = data;
                 if (status) {
                     const savedUsername = localStorage.getItem(`username_override_${id}`);
                     const finalUsername = savedUsername || username;
 
-                    setUser({ username: finalUsername, email, id });
+                    setUser({ username: finalUsername, email: email || "", phone: phone || "", bio: bio || "", id, createdAt });
                     setIsAuthenticated(true);
                     if (!toastShown.current) {
                         toast(`Welcome ${finalUsername}`, { position: "top-right" });
@@ -45,27 +52,39 @@ const Home = () => {
                     }
                 } else {
                     console.log("Verification failed, redirecting to login...");
-                    localStorage.removeItem("token");
-                    removeCookie("token");
-                    navigate("/login");
+                    clearAuth();
+                    navigate("/login", { replace: true });
                 }
             } catch (error) {
                 console.error("Verification error:", error);
-                localStorage.removeItem("token");
-                removeCookie("token");
-                navigate("/login");
+                clearAuth();
+                navigate("/login", { replace: true });
             }
         };
         verifyCookie();
-    }, [cookies, navigate, removeCookie]);
+    }, [cookies, navigate]);
 
-    const handleUsernameUpdate = (newUsername) => {
-        setUser((prev) => {
-            const updatedUser = { ...prev, username: newUsername };
-            localStorage.setItem(`username_override_${prev.id}`, newUsername);
-            return updatedUser;
-        });
-        toast.success("Profile updated successfully!");
+    const handleProfileUpdate = async (updatedFields) => {
+        try {
+            setUser((prev) => {
+                const nextUser = { ...prev, ...updatedFields };
+                if (updatedFields.username) {
+                    localStorage.setItem(`username_override_${prev.id}`, updatedFields.username);
+                }
+                return nextUser;
+            });
+
+            // Sync with backend MongoDB database
+            await axios.post("http://localhost:3000/updateProfile", {
+                id: user.id,
+                ...updatedFields
+            });
+
+            toast.success("Profile updated successfully!");
+        } catch (err) {
+            console.error("Failed to sync profile update:", err);
+            toast.success("Profile updated locally!");
+        }
     };
 
     if (!isAuthenticated) {
@@ -73,12 +92,30 @@ const Home = () => {
             <div style={{
                 height: "100vh",
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                background: "#0B0F19",
-                color: "#9CA3AF"
+                background: "#0F172A",
+                color: "#FFFFFF",
+                fontFamily: "sans-serif"
             }}>
-                Authenticating...
+                <div style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "12px",
+                    background: "linear-gradient(135deg, #3B82F6 0%, #10B981 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: "16px",
+                    boxShadow: "0 0 20px rgba(59, 130, 246, 0.4)"
+                }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                </div>
+                <h3 style={{ margin: "0 0 8px 0", fontWeight: "700", fontSize: "1.3rem" }}>Pulse<span style={{ color: "#10B981" }}>Trade</span></h3>
+                <p style={{ margin: 0, color: "#94A3B8", fontSize: "14px" }}>Verifying session security...</p>
             </div>
         );
     }
@@ -86,8 +123,8 @@ const Home = () => {
     return (
         <>
             <div className="home_page">
-                <TopBar user={user} onUsernameUpdate={handleUsernameUpdate} />
-                <Dashboard user={user} />
+                <TopBar user={user} onUsernameUpdate={(name) => handleProfileUpdate({ username: name })} />
+                <Dashboard user={user} onProfileUpdate={handleProfileUpdate} onUsernameUpdate={(name) => handleProfileUpdate({ username: name })} />
                 <ToastContainer />
             </div>
         </>

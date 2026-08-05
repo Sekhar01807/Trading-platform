@@ -7,8 +7,12 @@ const Orders = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        axios.get("http://localhost:3000/allOrders")
+    const fetchOrders = () => {
+        const token = localStorage.getItem("token");
+        axios.get("http://localhost:3000/allOrders", {
+            withCredentials: true,
+            headers: { Authorization: `Bearer ${token}` }
+        })
             .then((res) => {
                 setAllOrders(res.data);
                 setLoading(false);
@@ -17,6 +21,14 @@ const Orders = () => {
                 setError("Error fetching orders. Please try again later.");
                 setLoading(false);
             });
+    };
+
+    useEffect(() => {
+        fetchOrders();
+        window.addEventListener("portfolioUpdated", fetchOrders);
+        return () => {
+            window.removeEventListener("portfolioUpdated", fetchOrders);
+        };
     }, []);
 
     if (loading) {

@@ -4,10 +4,17 @@
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%);
-    padding: 20px;
+    background: radial-gradient(circle at 50% 20%, #EFF6FF 0%, #F8FAFC 70%, #E2E8F0 100%);
+    background-image: 
+        radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 60%),
+        linear-gradient(to right, rgba(226, 232, 240, 0.4) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(226, 232, 240, 0.4) 1px, transparent 1px);
+    background-size: 100% 100%, 30px 30px, 30px 30px;
+    padding: 24px;
     box-sizing: border-box;
     font-family: 'Inter', sans-serif;
+    position: relative;
+    overflow: hidden;
 }
 
 .auth_brand {
@@ -15,11 +22,12 @@
     align-items: center;
     gap: 12px;
     margin-bottom: 24px;
+    z-index: 2;
 }
 
 .auth_brand_icon {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border-radius: 12px;
     background: linear-gradient(135deg, #3B82F6 0%, #10B981 100%);
     display: flex;
@@ -27,50 +35,77 @@
     justify-content: center;
     color: #ffffff;
     font-weight: bold;
-    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
 }
 
 .auth_brand_title {
-    font-size: 1.8rem;
+    font-size: 1.9rem;
     font-weight: 700;
     letter-spacing: -0.5px;
     color: #0F172A;
 }
 
+.auth_badge_strip {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    z-index: 2;
+}
+
+.auth_badge_pill {
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #334155;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
 .form_container form {
     background: #FFFFFF;
-    border: 1px solid #E2E8F0;
+    border: 1px solid #CBD5E1;
     padding: 40px;
-    border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.02);
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.03);
     width: 100%;
-    max-width: 420px;
+    max-width: 440px;
     display: flex;
     flex-direction: column;
     gap: 20px;
     box-sizing: border-box;
+    z-index: 2;
 }
 
 .form_container h2 {
     color: #0F172A;
     font-weight: 700;
     margin: 0 0 6px 0;
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     text-align: center;
+    letter-spacing: -0.5px;
 }
 
 .form_subtitle {
     color: #64748B;
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     text-align: center;
     margin: -10px 0 10px 0;
+    line-height: 1.5;
 }
 
 .form_container label {
     font-size: 0.85rem;
-    color: #475569;
+    color: #334155;
     margin-bottom: 6px;
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-weight: 600;
 }
 
@@ -78,7 +113,7 @@
     width: 100%;
     padding: 12px 16px;
     border: 1px solid #CBD5E1;
-    border-radius: 8px;
+    border-radius: 10px;
     font-size: 0.95rem;
     color: #0F172A;
     outline: none;
@@ -90,7 +125,7 @@
 .form_container input:focus {
     border-color: #3B82F6;
     background-color: #FFFFFF;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
 }
 
 .form_container button {
@@ -100,11 +135,15 @@
     padding: 14px;
     font-size: 1rem;
     font-weight: 600;
-    border-radius: 8px;
+    border-radius: 10px;
     cursor: pointer;
     margin-top: 10px;
     transition: all 0.2s ease;
     box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
 .form_container button:hover {
@@ -113,7 +152,7 @@
 }
 
 .form_container span {
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     color: #64748B;
     text-align: center;
     margin-top: 15px;

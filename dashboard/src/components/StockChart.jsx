@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -8,10 +8,12 @@ import {
     Title,
     Tooltip,
     Legend,
+    Filler
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 import "./StockChart.css";
 import CloseIcon from '@mui/icons-material/Close';
+import { io } from "socket.io-client";
 
 ChartJS.register(
     CategoryScale,
@@ -20,17 +22,54 @@ ChartJS.register(
     LineElement,
     Title,
     Tooltip,
-    Legend
+    Legend,
+    Filler
 );
 
 const StockChart = ({ uid, closeChartWindow }) => {
+    const [liveLtp, setLiveLtp] = useState(1450.00);
+    const [priceHistory, setPriceHistory] = useState([]);
+
     // Dragging state
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const isDragging = useRef(false);
     const dragStart = useRef({ x: 0, y: 0 });
 
+    useEffect(() => {
+        const socket = io("http://localhost:3000");
+
+        socket.on("connect", () => {
+            socket.emit("subscribe", [uid]);
+        });
+
+        socket.on("priceUpdate", (livePrices) => {
+            if (livePrices && livePrices[uid]) {
+                const currentPrice = livePrices[uid];
+                setLiveLtp(currentPrice);
+
+                setPriceHistory((prev) => {
+                    if (prev.length === 0) {
+                        // Initialize realistic intraday baseline around current live stock price
+                        const baseline = [];
+                        let p = currentPrice * 0.985;
+                        for (let i = 0; i < 7; i++) {
+                            p += (Math.random() - 0.48) * (currentPrice * 0.005);
+                            baseline.push(parseFloat(p.toFixed(2)));
+                        }
+                        baseline.push(currentPrice);
+                        return baseline;
+                    }
+                    const updated = [...prev.slice(-7), currentPrice];
+                    return updated;
+                });
+            }
+        });
+
+        return () => socket.disconnect();
+    }, [uid]);
+
     const handleMouseDown = (e) => {
-        if (e.target.tagName === "BUTTON" || e.target.closest(".chart-container")) {
+        if (e.target.tagName === "BUTTON" || e.target.closest(".chart-content")) {
             return;
         }
 
@@ -57,29 +96,24 @@ const StockChart = ({ uid, closeChartWindow }) => {
         document.removeEventListener("mouseup", handleMouseUp);
     };
 
-    // Dummy Data for Lines (Rise and Fall)
-    const labels = ["9:15", "10:00", "11:00", "12:00", "1:00", "2:00", "3:00", "3:30"];
+    const labels = ["9:15", "10:00", "11:00", "12:00", "1:00", "2:00", "3:00", "LIVE"];
 
-    // Generate random data based on current price roughly (mock logic)
-    const generateRandomData = () => {
-        const data = [];
-        let base = 1000;
-        for (let i = 0; i < labels.length; i++) {
-            let change = Math.floor(Math.random() * 100) - 50;
-            base += change;
-            data.push(base);
-        }
-        return data;
-    }
+    const isUp = priceHistory.length > 1 ? priceHistory[priceHistory.length - 1] >= priceHistory[0] : true;
+    const strokeColor = isUp ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)";
+    const fillColor = isUp ? "rgba(34, 197, 94, 0.1)" : "rgba(239, 68, 68, 0.1)";
 
     const data = {
         labels,
         datasets: [
             {
-                label: uid,
-                data: generateRandomData(),
-                borderColor: "rgb(53, 162, 235)",
-                backgroundColor: "rgba(53, 162, 235, 0.5)",
+                label: `${uid} Price (₹)`,
+                data: priceHistory.length > 0 ? priceHistory : [liveLtp],
+                borderColor: strokeColor,
+                backgroundColor: fillColor,
+                fill: true,
+                tension: 0.35,
+                pointRadius: 4,
+                pointHoverRadius: 6,
             },
         ],
     };
@@ -88,13 +122,30 @@ const StockChart = ({ uid, closeChartWindow }) => {
         responsive: true,
         plugins: {
             legend: {
-                position: 'top',
+                display: false,
             },
             title: {
                 display: true,
-                text: `${uid} Intraday`,
+                text: `${uid} Live Intraday Chart - ₹${liveLtp.toFixed(2)}`,
+                color: "#1F2937",
+                font: {
+                    size: 15,
+                    weight: "bold",
+                }
             },
+            tooltip: {
+                callbacks: {
+                    label: (context) => ` Price: ₹${context.raw}`
+                }
+            }
         },
+        scales: {
+            y: {
+                ticks: {
+                    callback: (value) => `₹${value}`
+                }
+            }
+        }
     };
 
     return (
@@ -107,7 +158,7 @@ const StockChart = ({ uid, closeChartWindow }) => {
         >
             <div className="header">
                 <div className="title">
-                    <h3>{uid} <span>NSE</span></h3>
+                    <h3>{uid} <span>NSE</span> — ₹{liveLtp.toFixed(2)}</h3>
                 </div>
                 <button className="close-btn" onClick={closeChartWindow}>
                     <CloseIcon style={{ fontSize: "1.2rem" }} />

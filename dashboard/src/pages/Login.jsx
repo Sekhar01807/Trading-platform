@@ -5,6 +5,7 @@ import { ToastContainer, toast } from "react-toastify";
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
+import LoginIcon from '@mui/icons-material/Login';
 import "./Auth.css";
 
 const Login = () => {
@@ -14,6 +15,13 @@ const Login = () => {
         password: "",
     });
     const { email, password } = inputValue;
+
+    React.useEffect(() => {
+        const token = localStorage.getItem("token");
+        if (token) {
+            navigate("/", { replace: true });
+        }
+    }, [navigate]);
 
     const handleOnChange = (e) => {
         const { name, value } = e.target;
@@ -42,7 +50,6 @@ const Login = () => {
                 },
                 { withCredentials: true }
             );
-            console.log("Login response:", data);
             const { success, message, token } = data;
             if (success) {
                 if (token) {
@@ -68,20 +75,22 @@ const Login = () => {
 
     return (
         <div className="form_container">
+            {/* PulseTrade Brand Mark */}
             <div className="auth_brand">
                 <div className="auth_brand_icon">
-                    <ShowChartIcon />
+                    <ShowChartIcon fontSize="large" />
                 </div>
                 <div className="auth_brand_title">
                     Pulse<span style={{ color: "#10B981" }}>Trade</span>
                 </div>
             </div>
 
+            {/* Login Card */}
             <form onSubmit={handleSubmit}>
-                <h2>Sign In to PulseTrade</h2>
-                <p className="form_subtitle">Access your portfolio & real-time stock market workspace</p>
+                <h2>Sign In to Workspace</h2>
+                <p className="form_subtitle">Access your live stock watchlist, orders & portfolio terminal</p>
                 <div>
-                    <label htmlFor="email" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <label htmlFor="email">
                         <EmailOutlinedIcon style={{ fontSize: "1rem", color: "#3B82F6" }} /> Email Address
                     </label>
                     <input
@@ -94,7 +103,7 @@ const Login = () => {
                     />
                 </div>
                 <div>
-                    <label htmlFor="password" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <label htmlFor="password">
                         <LockOutlinedIcon style={{ fontSize: "1rem", color: "#3B82F6" }} /> Password
                     </label>
                     <input
@@ -106,9 +115,11 @@ const Login = () => {
                         required
                     />
                 </div>
-                <button type="submit">Sign In to Workspace</button>
+                <button type="submit">
+                    Sign In to Terminal <LoginIcon style={{ fontSize: "1.1rem" }} />
+                </button>
                 <span>
-                    Don't have an account? <Link to={"/signup"}>Create Account</Link>
+                    Don't have an account? <Link to={"/signup"}>Create Free Account</Link>
                 </span>
             </form>
             <ToastContainer />

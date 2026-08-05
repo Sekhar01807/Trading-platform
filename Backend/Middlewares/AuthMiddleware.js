@@ -15,7 +15,15 @@ module.exports.userVerification = (req, res) => {
             return res.json({ status: false, message: "Invalid token" });
         } else {
             const user = await User.findById(data.id);
-            if (user) return res.json({ status: true, user: user.username, email: user.email, id: user._id });
+            if (user) return res.json({ 
+                status: true, 
+                user: user.username, 
+                email: user.email, 
+                phone: user.phone || "", 
+                bio: user.bio || "", 
+                id: user._id, 
+                createdAt: user.createdAt 
+            });
             else return res.json({ status: false, message: "User not found" });
         }
     });

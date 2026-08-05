@@ -1,21 +1,69 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import CloseIcon from '@mui/icons-material/Close';
 import axios from "axios";
 import { toast } from "react-toastify";
+import { io } from "socket.io-client";
 
 import "./BuyActionWindow.css";
 
-const BuyActionWindow = ({ uid, closeBuyWindow }) => {
+const BuyActionWindow = ({ uid, initialPrice = 0, closeBuyWindow }) => {
+  const [productType, setProductType] = useState("CNC"); // CNC, MIS
+  const [orderType, setOrderType] = useState("MARKET"); // MARKET, LIMIT
   const [stockQuantity, setStockQuantity] = useState(1);
-  const [stockPrice, setStockPrice] = useState(0.0);
+  const [liveLtp, setLiveLtp] = useState(initialPrice > 0 ? initialPrice : 1450.00);
+  const [stockPrice, setStockPrice] = useState(initialPrice > 0 ? initialPrice : 1450.00);
+  const [availableCash, setAvailableCash] = useState(0);
 
   // Dragging state
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
 
+  const fetchUserFunds = () => {
+    const token = localStorage.getItem("token");
+    const headers = { Authorization: `Bearer ${token}` };
+
+    axios.get("http://localhost:3000/user/funds", { withCredentials: true, headers })
+      .then((res) => {
+        if (res.data && res.data.availableCash !== undefined) {
+          setAvailableCash(res.data.availableCash);
+        }
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchUserFunds();
+
+    const handlePortfolioUpdate = () => {
+      fetchUserFunds();
+    };
+
+    window.addEventListener("portfolioUpdated", handlePortfolioUpdate);
+
+    const socket = io("http://localhost:3000");
+    socket.on("connect", () => {
+      socket.emit("subscribe", [uid]);
+    });
+
+    socket.on("priceUpdate", (livePrices) => {
+      if (livePrices && livePrices[uid]) {
+        const newPrice = livePrices[uid];
+        setLiveLtp(newPrice);
+        if (orderType === "MARKET") {
+          setStockPrice(newPrice);
+        }
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+      window.removeEventListener("portfolioUpdated", handlePortfolioUpdate);
+    };
+  }, [uid, orderType]);
+
   const handleMouseDown = (e) => {
-    if (e.target.tagName === "INPUT" || e.target.tagName === "BUTTON") {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "BUTTON" || e.target.closest(".tab-btn")) {
       return;
     }
 
@@ -44,27 +92,52 @@ const BuyActionWindow = ({ uid, closeBuyWindow }) => {
 
   const handleBuyClick = async () => {
     try {
+      const finalPrice = orderType === "MARKET" ? liveLtp : (Number(stockPrice) > 0 ? Number(stockPrice) : liveLtp);
+      const totalMarginReq = Number(stockQuantity) * finalPrice;
+
+      if (totalMarginReq > availableCash) {
+        toast.warning("Margin required exceeds available cash in wallet!");
+      }
+
+      const token = localStorage.getItem("token");
       await axios.post(
         "http://localhost:3000/newOrders",
         {
           name: uid,
           qty: Number(stockQuantity),
-          price: Number(stockPrice) > 0 ? Number(stockPrice) : 1450,
+          price: finalPrice,
           mode: "BUY",
         },
-        { withCredentials: true }
+        { 
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${token}` }
+        }
       );
-      toast.success(`Bought ${stockQuantity} share(s) of ${uid}!`);
+      toast.success(`Bought ${stockQuantity} share(s) of ${uid} @ ₹${finalPrice.toFixed(2)} (${productType})!`);
+      window.dispatchEvent(new Event("portfolioUpdated"));
       closeBuyWindow();
     } catch (err) {
-      toast.error("Failed to place buy order.");
+      const msg = err.response?.data?.message || "Failed to place buy order.";
+      toast.error(msg);
       closeBuyWindow();
     }
   };
 
-  const handleCancelClick = () => {
-    closeBuyWindow();
-  };
+  const basePrice = liveLtp || stockPrice || 1450;
+  const marginReq = (Number(stockQuantity) * (orderType === "MARKET" ? liveLtp : (Number(stockPrice) || liveLtp))).toFixed(2);
+
+  // Dynamic market depth bid/offer tick data
+  const bids = [
+    { price: (basePrice - 0.25).toFixed(2), orders: 4, qty: 150 },
+    { price: (basePrice - 0.60).toFixed(2), orders: 9, qty: 320 },
+    { price: (basePrice - 1.10).toFixed(2), orders: 15, qty: 580 },
+  ];
+
+  const offers = [
+    { price: (basePrice + 0.25).toFixed(2), orders: 2, qty: 90 },
+    { price: (basePrice + 0.55).toFixed(2), orders: 6, qty: 240 },
+    { price: (basePrice + 1.05).toFixed(2), orders: 12, qty: 450 },
+  ];
 
   return (
     <div
@@ -77,7 +150,7 @@ const BuyActionWindow = ({ uid, closeBuyWindow }) => {
       <div className="header">
         <div className="title">
           <h3>Buy {uid} <span>NSE</span></h3>
-          <span className="price-tag">₹{stockPrice > 0 ? stockPrice : "1450.00"}</span>
+          <span className="price-tag">₹{liveLtp.toFixed(2)}</span>
         </div>
         <button className="close-btn" onClick={closeBuyWindow}>
           <CloseIcon style={{ fontSize: "1.2rem" }} />
@@ -85,6 +158,45 @@ const BuyActionWindow = ({ uid, closeBuyWindow }) => {
       </div>
 
       <div className="buy-window-body">
+        {/* Product Type & Order Type Tabs */}
+        <div className="order-options">
+          <div className="option-group">
+            <label>Product:</label>
+            <button
+              className={`tab-btn ${productType === "CNC" ? "active" : ""}`}
+              onClick={() => setProductType("CNC")}
+            >
+              Longterm CNC
+            </button>
+            <button
+              className={`tab-btn ${productType === "MIS" ? "active" : ""}`}
+              onClick={() => setProductType("MIS")}
+            >
+              Intraday MIS
+            </button>
+          </div>
+
+          <div className="option-group">
+            <label>Type:</label>
+            <button
+              className={`tab-btn ${orderType === "MARKET" ? "active" : ""}`}
+              onClick={() => {
+                setOrderType("MARKET");
+                setStockPrice(liveLtp);
+              }}
+            >
+              Market
+            </button>
+            <button
+              className={`tab-btn ${orderType === "LIMIT" ? "active" : ""}`}
+              onClick={() => setOrderType("LIMIT")}
+            >
+              Limit
+            </button>
+          </div>
+        </div>
+
+        {/* Inputs */}
         <div className="inputs-section">
           <fieldset>
             <legend>Qty.</legend>
@@ -92,76 +204,88 @@ const BuyActionWindow = ({ uid, closeBuyWindow }) => {
               type="number"
               name="qty"
               id="qty"
-              onChange={(e) => setStockQuantity(e.target.value)}
+              min="1"
+              onChange={(e) => setStockQuantity(Math.max(1, parseInt(e.target.value) || 1))}
               value={stockQuantity}
             />
           </fieldset>
-          <fieldset>
+          <fieldset style={{ opacity: orderType === "MARKET" ? 0.7 : 1 }}>
             <legend>Price</legend>
             <input
               type="number"
               name="price"
               id="price"
               step="0.05"
+              disabled={orderType === "MARKET"}
               onChange={(e) => setStockPrice(e.target.value)}
-              value={stockPrice}
+              value={orderType === "MARKET" ? liveLtp.toFixed(2) : stockPrice}
             />
           </fieldset>
         </div>
 
-        <div className="market-depth">
-          <div className="depth-header">
-            <span>Bid</span>
-            <span>Orders</span>
-            <span>Qty</span>
-            <span>Offer</span>
-            <span>Orders</span>
-            <span>Qty</span>
-          </div>
-          <div className="depth-row">
-            <span className="blue">1449.00</span>
-            <span>2</span>
-            <span>100</span>
-            <span className="red">1450.50</span>
-            <span>1</span>
-            <span>50</span>
-          </div>
-          <div className="depth-row">
-            <span className="blue">1448.50</span>
-            <span>5</span>
-            <span>250</span>
-            <span className="red">1451.00</span>
-            <span>3</span>
-            <span>150</span>
-          </div>
-          <div className="depth-row">
-            <span className="blue">1448.00</span>
-            <span>1</span>
-            <span>50</span>
-            <span className="red">1451.50</span>
-            <span>2</span>
-            <span>100</span>
-          </div>
-          <div className="depth-row">
-            <span className="blue">1447.00</span>
-            <span>8</span>
-            <span>400</span>
-            <span className="red">1452.00</span>
-            <span>4</span>
-            <span>200</span>
+        {/* 2-Column Market Depth Table */}
+        <div className="market-depth-wrapper">
+          <div className="market-depth-title">Live Market Depth ({uid})</div>
+          <div className="market-depth-columns">
+            {/* Bid Column */}
+            <div>
+              <table className="depth-table">
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left" }}>Bid</th>
+                    <th style={{ textAlign: "center" }}>Orders</th>
+                    <th style={{ textAlign: "right" }}>Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bids.map((b, i) => (
+                    <tr key={i}>
+                      <td className="blue" style={{ textAlign: "left" }}>{b.price}</td>
+                      <td style={{ textAlign: "center" }}>{b.orders}</td>
+                      <td style={{ textAlign: "right" }}>{b.qty}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="depth-divider"></div>
+
+            {/* Offer Column */}
+            <div>
+              <table className="depth-table">
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left" }}>Offer</th>
+                    <th style={{ textAlign: "center" }}>Orders</th>
+                    <th style={{ textAlign: "right" }}>Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {offers.map((o, i) => (
+                    <tr key={i}>
+                      <td className="red" style={{ textAlign: "left" }}>{o.price}</td>
+                      <td style={{ textAlign: "center" }}>{o.orders}</td>
+                      <td style={{ textAlign: "right" }}>{o.qty}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="buttons-section">
         <div className="margin-info">
-          <span>Margin: ₹{(Number(stockQuantity) * (Number(stockPrice) || 1450) / 5).toFixed(2)}</span>
+          <span className="req">Margin required: ₹{marginReq}</span>
+          <span className="avail">Available cash: ₹{availableCash.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
         </div>
         <div className="action-buttons">
           <button className="btn btn-blue" onClick={handleBuyClick}>
             Buy
           </button>
-          <button className="btn btn-grey" onClick={handleCancelClick}>
+          <button className="btn btn-grey" onClick={closeBuyWindow}>
             Cancel
           </button>
         </div>

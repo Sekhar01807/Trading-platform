@@ -4,15 +4,16 @@ import { Route, Routes } from "react-router-dom";
 import Apps from "./Apps";
 import Funds from "./Funds";
 import Holdings from "./Holdings";
-
 import Orders from "./Orders";
 import Positions from "./Positions";
 import Summary from "./Summary";
 import WatchList from "./WatchList";
+import Profile from "./Profile";
+import NotFound from "./NotFound";
 
 import { GeneralContextProvider } from "./GeneralContext";
 
-const Dashboard = ({ user }) => {
+const Dashboard = ({ user, onProfileUpdate, onUsernameUpdate }) => {
     return (
         <div className="dashboard-container">
             <GeneralContextProvider>
@@ -24,7 +25,9 @@ const Dashboard = ({ user }) => {
                         <Route path="/holdings" element={<Holdings />} />
                         <Route path="/positions" element={<Positions />} />
                         <Route path="/funds" element={<Funds />} />
+                        <Route path="/profile" element={<Profile user={user} onProfileUpdate={onProfileUpdate} onUsernameUpdate={onUsernameUpdate} />} />
                         <Route path="/apps" element={<Apps />} />
+                        <Route path="*" element={<NotFound />} />
                     </Routes>
                 </div>
             </GeneralContextProvider>
@@ -32,4 +35,4 @@ const Dashboard = ({ user }) => {
     );
 };
 
-export default Dashboard;
+export default Dashboard;

@@ -15,25 +15,30 @@ const GeneralContext = React.createContext({
 export const GeneralContextProvider = (props) => {
   const [activeWindow, setActiveWindow] = useState(null); // "BUY", "SELL", "CHART", "MORE", null
   const [selectedStockUID, setSelectedStockUID] = useState("");
+  const [selectedStockPrice, setSelectedStockPrice] = useState(0);
 
-  const handleOpenBuyWindow = (uid) => {
+  const handleOpenBuyWindow = (uid, price = 0) => {
     setActiveWindow("BUY");
     setSelectedStockUID(uid);
+    setSelectedStockPrice(price);
   };
 
   const handleCloseBuyWindow = () => {
     setActiveWindow(null);
     setSelectedStockUID("");
+    setSelectedStockPrice(0);
   };
 
-  const handleOpenSellWindow = (uid) => {
+  const handleOpenSellWindow = (uid, price = 0) => {
     setActiveWindow("SELL");
     setSelectedStockUID(uid);
+    setSelectedStockPrice(price);
   };
 
   const handleCloseSellWindow = () => {
     setActiveWindow(null);
     setSelectedStockUID("");
+    setSelectedStockPrice(0);
   };
 
   const handleOpenChartWindow = (uid) => {
@@ -70,8 +75,8 @@ export const GeneralContextProvider = (props) => {
       }}
     >
       {props.children}
-      {activeWindow === "BUY" && <BuyActionWindow uid={selectedStockUID} closeBuyWindow={handleCloseBuyWindow} />}
-      {activeWindow === "SELL" && <SellActionWindow uid={selectedStockUID} closeSellWindow={handleCloseSellWindow} />}
+      {activeWindow === "BUY" && <BuyActionWindow uid={selectedStockUID} initialPrice={selectedStockPrice} closeBuyWindow={handleCloseBuyWindow} />}
+      {activeWindow === "SELL" && <SellActionWindow uid={selectedStockUID} initialPrice={selectedStockPrice} closeSellWindow={handleCloseSellWindow} />}
       {activeWindow === "CHART" && <StockChart uid={selectedStockUID} closeChartWindow={handleCloseChartWindow} />}
       {activeWindow === "MORE" && <StockDetails uid={selectedStockUID} closeMoreWindow={handleCloseMoreWindow} />}
     </GeneralContext.Provider>

@@ -1,9 +1,0 @@
-<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
-
-  <!-- Top main diamond shape -->
-  <polygon points="0,100 100,0 300,0 200,100 100,200" fill="#387ED1"></polygon>
-
-  <!-- Bottom darker triangular fold -->
-  <polygon points="100,200 300,200 200,100" fill="#2F6DB8"></polygon>
-
-</svg>
