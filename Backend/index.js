@@ -56,14 +56,35 @@ const authRateLimiter = (req, res, next) => {
 app.use("/login", authRateLimiter);
 app.use("/signup", authRateLimiter);
 
+const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    process.env.DASHBOARD_URL,
+    ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : []),
+    "http://localhost:5173",
+    "http://localhost:5174"
+].filter(Boolean);
+
 app.use(cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        return callback(null, true);
+    },
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
 }));
 
 app.use(cookieParser());
 app.use(bodyParser.json());
+
+app.get("/", (req, res) => {
+    res.status(200).json({
+        status: true,
+        message: "PulseTrade Backend API is running successfully!"
+    });
+});
+
 app.use("/", authRoute);
 
 module.exports.createSecretToken = (id) => {
@@ -451,8 +472,14 @@ const server = app.listen(PORT, () => {
 
 const io = require("socket.io")(server, {
     cors: {
-        origin: ["http://localhost:5173", "http://localhost:5174"],
-        methods: ["GET", "POST"]
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+                return callback(null, true);
+            }
+            return callback(null, true);
+        },
+        methods: ["GET", "POST"],
+        credentials: true
     }
 });
 
