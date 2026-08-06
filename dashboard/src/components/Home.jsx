@@ -5,6 +5,7 @@ import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import Dashboard from "./Dashboard";
 import TopBar from "./TopBar";
+import { API_URL } from "../config";
 
 const Home = () => {
     const navigate = useNavigate();
@@ -31,7 +32,7 @@ const Home = () => {
             try {
                 console.log("Verifying token with backend...");
                 const { data } = await axios.post(
-                    "http://localhost:3000",
+                    API_URL,
                     { token },
                     { 
                         withCredentials: true,
@@ -75,7 +76,7 @@ const Home = () => {
             });
 
             // Sync with backend MongoDB database
-            await axios.post("http://localhost:3000/updateProfile", {
+            await axios.post(`${API_URL}/updateProfile`, {
                 id: user.id,
                 ...updatedFields
             });

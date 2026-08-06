@@ -1,4 +1,5 @@
 import React from 'react';
+import { DASHBOARD_URL } from '../../config';
 
 function DashboardShowcase() {
     return (
@@ -31,7 +32,7 @@ function DashboardShowcase() {
                     </div>
 
                     <a 
-                        href="http://localhost:5173/signup" 
+                        href={`${DASHBOARD_URL}/signup`} 
                         className='btn btn-primary px-4 py-2 fw-semibold shadow-sm'
                         style={{ background: "#3B82F6", borderColor: "#3B82F6", borderRadius: "8px" }}
                     >

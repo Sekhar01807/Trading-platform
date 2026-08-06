@@ -3,6 +3,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import axios from "axios";
 import { toast } from "react-toastify";
 import { io } from "socket.io-client";
+import { API_URL } from "../config";
 
 import "./BuyActionWindow.css";
 
@@ -23,7 +24,7 @@ const BuyActionWindow = ({ uid, initialPrice = 0, closeBuyWindow }) => {
     const token = localStorage.getItem("token");
     const headers = { Authorization: `Bearer ${token}` };
 
-    axios.get("http://localhost:3000/user/funds", { withCredentials: true, headers })
+    axios.get(`${API_URL}/user/funds`, { withCredentials: true, headers })
       .then((res) => {
         if (res.data && res.data.availableCash !== undefined) {
           setAvailableCash(res.data.availableCash);
@@ -41,7 +42,7 @@ const BuyActionWindow = ({ uid, initialPrice = 0, closeBuyWindow }) => {
 
     window.addEventListener("portfolioUpdated", handlePortfolioUpdate);
 
-    const socket = io("http://localhost:3000");
+    const socket = io(API_URL);
     socket.on("connect", () => {
       socket.emit("subscribe", [uid]);
     });
@@ -101,7 +102,7 @@ const BuyActionWindow = ({ uid, initialPrice = 0, closeBuyWindow }) => {
 
       const token = localStorage.getItem("token");
       await axios.post(
-        "http://localhost:3000/newOrders",
+        `${API_URL}/newOrders`,
         {
           name: uid,
           qty: Number(stockQuantity),

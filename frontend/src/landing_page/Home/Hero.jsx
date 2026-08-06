@@ -1,4 +1,5 @@
 import React from 'react';
+import { DASHBOARD_URL } from '../../config';
 
 function Hero() {
     return (
@@ -28,14 +29,14 @@ function Hero() {
 
                 <div className='d-flex gap-3'>
                     <a 
-                        href="http://localhost:5173/login" 
+                        href={`${DASHBOARD_URL}/login`} 
                         className='btn btn-outline-scale px-3 py-2'
                         style={{ borderRadius: "8px", fontWeight: "600", fontSize: "0.9rem", border: "1px solid #CBD5E1", color: "#475569" }}
                     >
                         Sign In
                     </a>
                     <a 
-                        href="http://localhost:5173/signup" 
+                        href={`${DASHBOARD_URL}/signup`} 
                         className='btn btn-primary btn-scale px-4 py-2 shadow-sm'
                         style={{ background: "#3B82F6", borderColor: "#3B82F6", borderRadius: "8px", fontWeight: "600", fontSize: "0.9rem" }}
                     >
@@ -67,7 +68,7 @@ function Hero() {
                     {/* CTAs */}
                     <div className='d-flex justify-content-center gap-3 mb-4'>
                         <a 
-                            href="http://localhost:5173/signup" 
+                            href={`${DASHBOARD_URL}/signup`} 
                             className='btn btn-primary btn-scale btn-lg px-4 py-3 shadow'
                             style={{
                                 background: "linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)",
@@ -80,7 +81,7 @@ function Hero() {
                             Launch Trading Terminal 🚀
                         </a>
                         <a 
-                            href="http://localhost:5173/login" 
+                            href={`${DASHBOARD_URL}/login`} 
                             className='btn btn-outline-scale px-4 py-3'
                             style={{
                                 borderRadius: "10px",

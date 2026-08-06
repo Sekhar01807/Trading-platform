@@ -1,4 +1,5 @@
 import React from 'react';
+import { DASHBOARD_URL } from '../../config';
 import Hero from './Hero';
 import LiveChartsShowcase from './LiveChartsShowcase';
 import Features from './Features';
@@ -28,7 +29,7 @@ function HomePage() {
                     </p>
                     <div className='d-flex justify-content-center gap-3'>
                         <a 
-                            href="http://localhost:5173/signup" 
+                            href={`${DASHBOARD_URL}/signup`} 
                             className='btn btn-primary btn-scale btn-lg px-4 py-3 shadow-sm'
                             style={{
                                 background: "linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)",
@@ -40,7 +41,7 @@ function HomePage() {
                             Create Free Account →
                         </a>
                         <a 
-                            href="http://localhost:5173/login" 
+                            href={`${DASHBOARD_URL}/login`} 
                             className='btn btn-outline-scale px-4 py-3'
                             style={{
                                 borderRadius: "10px",

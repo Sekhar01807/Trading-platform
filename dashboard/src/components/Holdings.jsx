@@ -3,6 +3,7 @@ import axios from "axios";
 import { io } from "socket.io-client";
 import { toast } from "react-toastify";
 import { VerticalGraph } from "./VerticalGraph";
+import { API_URL } from "../config";
 
 const Holdings = () => {
     const [allHoldings, setAllHoldings] = useState([]);
@@ -12,7 +13,7 @@ const Holdings = () => {
 
     const fetchHoldings = () => {
         const token = localStorage.getItem("token");
-        axios.get("http://localhost:3000/allHoldings", {
+        axios.get(`${API_URL}/allHoldings`, {
             withCredentials: true,
             headers: { Authorization: `Bearer ${token}` }
         })
@@ -29,7 +30,7 @@ const Holdings = () => {
     useEffect(() => {
         fetchHoldings();
 
-        const socket = io("http://localhost:3000");
+        const socket = io(API_URL);
         socket.on("priceUpdate", (livePrices) => {
             setAllHoldings((prevHoldings) => {
                 if (!prevHoldings || prevHoldings.length === 0) return prevHoldings;
@@ -59,7 +60,7 @@ const Holdings = () => {
             setSeedingDemo(true);
             const token = localStorage.getItem("token");
             await axios.post(
-                "http://localhost:3000/seedDemoData",
+                `${API_URL}/seedDemoData`,
                 {},
                 {
                     withCredentials: true,
@@ -78,7 +79,7 @@ const Holdings = () => {
     const handleResetPortfolio = async () => {
         try {
             const token = localStorage.getItem("token");
-            await axios.delete("http://localhost:3000/resetPortfolio", {
+            await axios.delete(`${API_URL}/resetPortfolio`, {
                 withCredentials: true,
                 headers: { Authorization: `Bearer ${token}` }
             });

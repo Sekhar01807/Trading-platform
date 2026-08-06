@@ -8,6 +8,7 @@ import DeleteOutline from "@mui/icons-material/DeleteOutline";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { io } from "socket.io-client";
+import { API_URL } from "../config";
 
 import { watchlist as initialWatchlist } from "../data/data";
 import GeneralContext from "./GeneralContext";
@@ -136,10 +137,10 @@ const WatchList = () => {
     };
 
     useEffect(() => {
-        const socket = io("http://localhost:3000");
+        const socket = io(API_URL);
 
         socket.on("connect", () => {
-            console.log("Connected to live price server at http://localhost:3000");
+            console.log(`Connected to live price server at ${API_URL}`);
             socket.emit("subscribe", stocks.map(s => s.name));
         });
 

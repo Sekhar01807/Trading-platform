@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
+import { API_URL } from "../config";
 
 const Summary = ({ user }) => {
     const [holdings, setHoldings] = useState([]);
@@ -12,7 +13,7 @@ const Summary = ({ user }) => {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
 
-        axios.get("http://localhost:3000/user/funds", { withCredentials: true, headers })
+        axios.get(`${API_URL}/user/funds`, { withCredentials: true, headers })
             .then((res) => {
                 if (res.data && res.data.totalAddedFunds !== undefined) {
                     setTotalAddedFunds(res.data.totalAddedFunds);
@@ -20,7 +21,7 @@ const Summary = ({ user }) => {
             })
             .catch(() => {});
 
-        axios.get("http://localhost:3000/allHoldings", { withCredentials: true, headers })
+        axios.get(`${API_URL}/allHoldings`, { withCredentials: true, headers })
             .then((res) => {
                 setHoldings(res.data);
                 setLoading(false);
@@ -33,7 +34,7 @@ const Summary = ({ user }) => {
     useEffect(() => {
         fetchHoldingsAndFunds();
 
-        const socket = io("http://localhost:3000");
+        const socket = io(API_URL);
         socket.on("priceUpdate", (livePrices) => {
             setHoldings(prevHoldings => {
                 if (!prevHoldings || prevHoldings.length === 0) return prevHoldings;

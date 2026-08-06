@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { io } from "socket.io-client";
 import Menu from "./Menu";
+import { API_URL } from "../config";
 
 const TopBar = ({ user, onUsernameUpdate }) => {
     const [nifty, setNifty] = useState({ price: 24512.40, percent: "+0.45%", isUp: true });
     const [sensex, setSensex] = useState({ price: 80245.80, percent: "+0.38%", isUp: true });
 
     useEffect(() => {
-        const socket = io("http://localhost:3000");
+        const socket = io(API_URL);
 
         socket.on("priceUpdate", (livePrices) => {
             if (livePrices["NIFTY 50"]) {

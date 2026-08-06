@@ -14,6 +14,7 @@ import { Line } from "react-chartjs-2";
 import "./StockChart.css";
 import CloseIcon from '@mui/icons-material/Close';
 import { io } from "socket.io-client";
+import { API_URL } from "../config";
 
 ChartJS.register(
     CategoryScale,
@@ -36,7 +37,7 @@ const StockChart = ({ uid, closeChartWindow }) => {
     const dragStart = useRef({ x: 0, y: 0 });
 
     useEffect(() => {
-        const socket = io("http://localhost:3000");
+        const socket = io(API_URL);
 
         socket.on("connect", () => {
             socket.emit("subscribe", [uid]);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
+import { API_URL } from "../config";
 
 const Orders = () => {
     const [allOrders, setAllOrders] = useState([]);
@@ -9,7 +10,7 @@ const Orders = () => {
 
     const fetchOrders = () => {
         const token = localStorage.getItem("token");
-        axios.get("http://localhost:3000/allOrders", {
+        axios.get(`${API_URL}/allOrders`, {
             withCredentials: true,
             headers: { Authorization: `Bearer ${token}` }
         })

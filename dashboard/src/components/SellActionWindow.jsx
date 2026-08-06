@@ -3,6 +3,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import axios from "axios";
 import { toast } from "react-toastify";
 import { io } from "socket.io-client";
+import { API_URL } from "../config";
 
 import "./SellActionWindow.css";
 
@@ -24,7 +25,7 @@ const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
     const token = localStorage.getItem("token");
     const headers = { Authorization: `Bearer ${token}` };
 
-    axios.get("http://localhost:3000/user/funds", { withCredentials: true, headers })
+    axios.get(`${API_URL}/user/funds`, { withCredentials: true, headers })
       .then((res) => {
         if (res.data && res.data.availableCash !== undefined) {
           setAvailableCash(res.data.availableCash);
@@ -32,7 +33,7 @@ const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
       })
       .catch(() => {});
 
-    axios.get("http://localhost:3000/allHoldings", { withCredentials: true, headers })
+    axios.get(`${API_URL}/allHoldings`, { withCredentials: true, headers })
       .then((res) => {
         const holdings = res.data || [];
         const holdingItem = holdings.find((h) => h.name === uid);
@@ -53,7 +54,7 @@ const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
 
     window.addEventListener("portfolioUpdated", handlePortfolioUpdate);
 
-    const socket = io("http://localhost:3000");
+    const socket = io(API_URL);
     socket.on("connect", () => {
       socket.emit("subscribe", [uid]);
     });
@@ -107,7 +108,7 @@ const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
       const finalPrice = orderType === "MARKET" ? liveLtp : (Number(stockPrice) > 0 ? Number(stockPrice) : liveLtp);
       const token = localStorage.getItem("token");
       await axios.post(
-        "http://localhost:3000/newOrders",
+        `${API_URL}/newOrders`,
         {
           name: uid,
           qty: Number(stockQuantity),

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useCookies } from "react-cookie";
 import axios from "axios";
-import { LANDING_URL } from "../config";
+import { LANDING_URL, API_URL } from "../config";
 
 // Material UI Icons
 import PersonIcon from "@mui/icons-material/Person";
@@ -43,7 +43,7 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
     useEffect(() => {
         const token = localStorage.getItem("token");
         if (token) {
-            axios.get("http://localhost:3000/user/funds", {
+            axios.get(`${API_URL}/user/funds`, {
                 withCredentials: true,
                 headers: { Authorization: `Bearer ${token}` }
             })
@@ -78,11 +78,14 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
 
     // Fetch user's real holdings and orders from backend
     useEffect(() => {
-        axios.get("http://localhost:3000/allHoldings", { withCredentials: true })
+        const token = localStorage.getItem("token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        axios.get(`${API_URL}/allHoldings`, { withCredentials: true, headers })
             .then(res => setHoldings(res.data))
             .catch(() => {});
 
-        axios.get("http://localhost:3000/allOrders", { withCredentials: true })
+        axios.get(`${API_URL}/allOrders`, { withCredentials: true, headers })
             .then(res => setOrders(res.data))
             .catch(() => {});
     }, []);

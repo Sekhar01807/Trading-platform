@@ -1,4 +1,5 @@
 import React from 'react';
+import { DASHBOARD_URL } from '../config';
 
 function Footer() {
     return (
@@ -35,9 +36,9 @@ function Footer() {
                     <div className="col-lg-2 col-md-6">
                         <h6 className="fw-bold text-dark mb-3">Platform</h6>
                         <ul className="list-unstyled text-muted small d-flex flex-direction-column gap-2">
-                            <li><a href="http://localhost:5173/signup" className="text-decoration-none text-muted">Sign Up</a></li>
-                            <li><a href="http://localhost:5173/login" className="text-decoration-none text-muted">Sign In</a></li>
-                            <li><a href="http://localhost:5173" className="text-decoration-none text-muted">Trading Terminal</a></li>
+                            <li><a href={`${DASHBOARD_URL}/signup`} className="text-decoration-none text-muted">Sign Up</a></li>
+                            <li><a href={`${DASHBOARD_URL}/login`} className="text-decoration-none text-muted">Sign In</a></li>
+                            <li><a href={DASHBOARD_URL} className="text-decoration-none text-muted">Trading Terminal</a></li>
                         </ul>
                     </div>
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
 import { toast } from "react-toastify";
+import { API_URL } from "../config";
 
 const Funds = () => {
     const [totalAddedFunds, setTotalAddedFunds] = useState(0);
@@ -20,7 +21,7 @@ const Funds = () => {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
 
-        axios.get("http://localhost:3000/user/funds", { withCredentials: true, headers })
+        axios.get(`${API_URL}/user/funds`, { withCredentials: true, headers })
             .then(res => {
                 if (res.data && res.data.totalAddedFunds !== undefined) {
                     setTotalAddedFunds(res.data.totalAddedFunds);
@@ -28,11 +29,11 @@ const Funds = () => {
             })
             .catch(err => console.error("Error fetching user funds:", err));
 
-        axios.get("http://localhost:3000/allHoldings", { withCredentials: true, headers })
+        axios.get(`${API_URL}/allHoldings`, { withCredentials: true, headers })
             .then(res => setHoldings(res.data))
             .catch(err => console.error("Error fetching holdings:", err));
 
-        axios.get("http://localhost:3000/allOrders", { withCredentials: true, headers })
+        axios.get(`${API_URL}/allOrders`, { withCredentials: true, headers })
             .then(res => setOrders(res.data))
             .catch(err => console.error("Error fetching orders:", err));
     };
@@ -49,7 +50,7 @@ const Funds = () => {
             const token = localStorage.getItem("token");
             const headers = { Authorization: `Bearer ${token}` };
 
-            axios.post("http://localhost:3000/user/funds", { amount: depositAmt, action: "ADD" }, { withCredentials: true, headers })
+            axios.post(`${API_URL}/user/funds`, { amount: depositAmt, action: "ADD" }, { withCredentials: true, headers })
                 .then(res => {
                     if (res.data && res.data.totalAddedFunds !== undefined) {
                         setTotalAddedFunds(res.data.totalAddedFunds);
@@ -65,7 +66,7 @@ const Funds = () => {
             window.history.replaceState({}, document.title, window.location.pathname);
         }
 
-        const socket = io("http://localhost:3000");
+        const socket = io(API_URL);
         socket.on("priceUpdate", (livePrices) => {
             setHoldings(prevHoldings => {
                 if (!prevHoldings || prevHoldings.length === 0) return prevHoldings;
@@ -115,7 +116,7 @@ const Funds = () => {
             const headers = { Authorization: `Bearer ${token}` };
 
             // Step 1: Create a Razorpay order on the backend
-            const orderRes = await axios.post("http://localhost:3000/create-razorpay-order",
+            const orderRes = await axios.post(`${API_URL}/create-razorpay-order`,
                 { amount: amt },
                 { withCredentials: true, headers }
             );
@@ -140,7 +141,7 @@ const Funds = () => {
                     // Step 3: Verify payment signature on backend
                     try {
                         const verifyRes = await axios.post(
-                            "http://localhost:3000/verify-razorpay-payment",
+                            `${API_URL}/verify-razorpay-payment`,
                             {
                                 amount: amt,
                                 razorpay_payment_id: response.razorpay_payment_id,
@@ -218,7 +219,7 @@ const Funds = () => {
         try {
             const token = localStorage.getItem("token");
             const headers = { Authorization: `Bearer ${token}` };
-            const res = await axios.post("http://localhost:3000/user/funds", { amount: amt, action: "WITHDRAW" }, { withCredentials: true, headers });
+            const res = await axios.post(`${API_URL}/user/funds`, { amount: amt, action: "WITHDRAW" }, { withCredentials: true, headers });
 
             if (res.data && res.data.totalAddedFunds) {
                 setTotalAddedFunds(res.data.totalAddedFunds);

@@ -6,6 +6,7 @@ import ShowChartIcon from '@mui/icons-material/ShowChart';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import LoginIcon from '@mui/icons-material/Login';
+import { API_URL } from "../config";
 import "./Auth.css";
 
 const Login = () => {
@@ -44,7 +45,7 @@ const Login = () => {
         e.preventDefault();
         try {
             const { data } = await axios.post(
-                "http://localhost:3000/login",
+                `${API_URL}/login`,
                 {
                     ...inputValue,
                 },

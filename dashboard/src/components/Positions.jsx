@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
+import { API_URL } from "../config";
 
 const Positions = () => {
     const [allPositions, setAllPositions] = useState([]);
@@ -9,7 +10,7 @@ const Positions = () => {
 
     const fetchPositions = () => {
         const token = localStorage.getItem("token");
-        axios.get("http://localhost:3000/allPositions", {
+        axios.get(`${API_URL}/allPositions`, {
             withCredentials: true,
             headers: { Authorization: `Bearer ${token}` }
         })
@@ -26,7 +27,7 @@ const Positions = () => {
     useEffect(() => {
         fetchPositions();
 
-        const socket = io("http://localhost:3000");
+        const socket = io(API_URL);
         socket.on("priceUpdate", (livePrices) => {
             setAllPositions((prevPositions) => {
                 if (!prevPositions || prevPositions.length === 0) return prevPositions;
