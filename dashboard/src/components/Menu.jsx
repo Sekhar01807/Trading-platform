@@ -6,7 +6,6 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
 import { LANDING_URL } from "../config";
 
 const Menu = ({ user, onUsernameUpdate }) => {
@@ -46,18 +45,16 @@ const Menu = ({ user, onUsernameUpdate }) => {
         <div className="menu-container">
             {/* PulseTrade Brand Logo - Direct Link to Landing Page */}
             <a href={LANDING_URL} style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
-                <div style={{
-                    width: "36px",
-                    height: "36px",
-                    borderRadius: "8px",
-                    background: "linear-gradient(135deg, #3B82F6 0%, #10B981 100%)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    boxShadow: "0 0 12px rgba(59, 130, 246, 0.3)"
-                }}>
-                    <ShowChartIcon style={{ color: "#ffffff", fontSize: "1.4rem" }} />
-                </div>
+                <img 
+                    src="/logo.svg" 
+                    alt="PulseTrade Logo" 
+                    style={{
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "9px",
+                        boxShadow: "0 0 12px rgba(59, 130, 246, 0.3)"
+                    }} 
+                />
                 <span style={{
                     fontSize: "1.2rem",
                     fontWeight: "700",

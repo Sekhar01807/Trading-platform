@@ -1,9 +1,28 @@
-<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <!-- Background Gradient: Blue to Cyan/Emerald -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="50%" stop-color="#06B6D4"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
 
-  <!-- Top main diamond shape -->
-  <polygon points="0,100 100,0 300,0 200,100 100,200" fill="#387ED1"></polygon>
+    <!-- Lightning Bolt Gradient: Gold to Orange/Red -->
+    <linearGradient id="boltGrad" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#FFD166"/>
+      <stop offset="45%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#EF4444"/>
+    </linearGradient>
 
-  <!-- Bottom darker triangular fold -->
-  <polygon points="100,200 300,200 200,100" fill="#2F6DB8"></polygon>
+    <!-- Soft Glow Filter -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.15"/>
+    </filter>
+  </defs>
 
+  <!-- Rounded Box -->
+  <rect width="100" height="100" rx="22" ry="22" fill="url(#bgGrad)"/>
+
+  <!-- Lightning Bolt -->
+  <path d="M53,22 L38,50 H49 L43,78 L64,47 H52 Z" fill="url(#boltGrad)" filter="url(#shadow)"/>
 </svg>

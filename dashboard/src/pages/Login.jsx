@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
-import ShowChartIcon from '@mui/icons-material/ShowChart';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import LoginIcon from '@mui/icons-material/Login';
@@ -78,9 +77,11 @@ const Login = () => {
         <div className="form_container">
             {/* PulseTrade Brand Mark */}
             <div className="auth_brand">
-                <div className="auth_brand_icon">
-                    <ShowChartIcon fontSize="large" />
-                </div>
+                <img 
+                    src="/logo.svg" 
+                    alt="PulseTrade Logo" 
+                    style={{ width: "44px", height: "44px", borderRadius: "10px", boxShadow: "0 4px 14px rgba(59, 130, 246, 0.3)" }} 
+                />
                 <div className="auth_brand_title">
                     Pulse<span style={{ color: "#10B981" }}>Trade</span>
                 </div>

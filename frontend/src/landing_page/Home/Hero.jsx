@@ -7,21 +7,16 @@ function Hero() {
             {/* Top Brand Header */}
             <div className='d-flex justify-content-between align-items-center py-3 mb-4 border-bottom'>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div style={{
-                        width: "36px",
-                        height: "36px",
-                        borderRadius: "10px",
-                        background: "linear-gradient(135deg, #3B82F6 0%, #10B981 100%)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#fff",
-                        fontWeight: "bold",
-                        fontSize: "1.2rem",
-                        boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)"
-                    }}>
-                        ⚡
-                    </div>
+                    <img 
+                        src="/logo.svg" 
+                        alt="PulseTrade Logo" 
+                        style={{
+                            width: "36px",
+                            height: "36px",
+                            borderRadius: "9px",
+                            boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)"
+                        }} 
+                    />
                     <span style={{ fontSize: "1.4rem", fontWeight: "700", color: "#0F172A", letterSpacing: "-0.5px" }}>
                         Pulse<span style={{ color: "#10B981" }}>Trade</span>
                     </span>

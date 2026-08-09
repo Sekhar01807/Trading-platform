@@ -8,19 +8,11 @@ function Footer() {
                 <div className="row gy-4">
                     <div className="col-lg-4 col-md-6">
                         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-                            <div style={{
-                                width: "32px",
-                                height: "32px",
-                                borderRadius: "8px",
-                                background: "linear-gradient(135deg, #3B82F6 0%, #10B981 100%)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                color: "#fff",
-                                fontWeight: "bold"
-                            }}>
-                                ⚡
-                            </div>
+                            <img 
+                                src="/logo.svg" 
+                                alt="PulseTrade Logo" 
+                                style={{ width: "32px", height: "32px", borderRadius: "8px" }} 
+                            />
                             <span style={{ fontSize: "1.3rem", fontWeight: "700", color: "#0F172A", letterSpacing: "-0.5px" }}>
                                 Pulse<span style={{ color: "#10B981" }}>Trade</span>
                             </span>
