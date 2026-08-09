@@ -100,21 +100,17 @@ const Home = () => {
                 color: "#FFFFFF",
                 fontFamily: "sans-serif"
             }}>
-                <div style={{
-                    width: "48px",
-                    height: "48px",
-                    borderRadius: "12px",
-                    background: "linear-gradient(135deg, #3B82F6 0%, #10B981 100%)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: "16px",
-                    boxShadow: "0 0 20px rgba(59, 130, 246, 0.4)"
-                }}>
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                    </svg>
-                </div>
+                <img 
+                    src="/logo.svg" 
+                    alt="PulseTrade Logo" 
+                    style={{
+                        width: "48px",
+                        height: "48px",
+                        borderRadius: "12px",
+                        marginBottom: "16px",
+                        boxShadow: "0 0 20px rgba(59, 130, 246, 0.4)"
+                    }} 
+                />
                 <h3 style={{ margin: "0 0 8px 0", fontWeight: "700", fontSize: "1.3rem" }}>Pulse<span style={{ color: "#10B981" }}>Trade</span></h3>
                 <p style={{ margin: 0, color: "#94A3B8", fontSize: "14px" }}>Verifying session security...</p>
             </div>
