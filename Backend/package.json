@@ -1,7 +1,7 @@
 {
-  "name": "backend",
+  "name": "pulsetrade-backend",
   "version": "1.0.0",
-  "description": "Zerodha Trading Platform Backend API",
+  "description": "PulseTrade Trading Platform Backend API",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

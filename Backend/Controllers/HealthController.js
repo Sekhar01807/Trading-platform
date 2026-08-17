@@ -41,7 +41,7 @@ const getHealthStatus = async (req, res) => {
         },
         database: {
             status: dbStatus,
-            name: mongoose.connection.name || "zerodha",
+            name: mongoose.connection.name || "pulsetrade",
             latencyMs: dbLatencyMs
         },
         memory: {

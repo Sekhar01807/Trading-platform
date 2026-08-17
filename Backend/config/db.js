@@ -38,7 +38,7 @@ const connectDB = async (url = process.env.ATLASDB_URL) => {
         setupMongooseEvents();
 
         const conn = await mongoose.connect(url, {
-            dbName: "zerodha",
+            dbName: process.env.DB_NAME || "pulsetrade",
             serverSelectionTimeoutMS: 10000,
             socketTimeoutMS: 45000,
             maxPoolSize: 50

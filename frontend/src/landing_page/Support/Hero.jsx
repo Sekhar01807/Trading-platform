@@ -12,7 +12,7 @@ export default function SupportPortal() {
             Support Portal
           </h2>
 
-          <button className="btn zerodha-btn">
+          <button className="btn btn-primary" style={{ borderRadius: "6px", fontWeight: "600" }}>
             My tickets
           </button>
         </div>
