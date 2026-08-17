@@ -57,7 +57,6 @@ class OrderService {
         const totalOrderCost = Number((qty * price).toFixed(2));
 
         // 1. Atomic Balance Check & Deduction:
-        // Ensures simultaneous requests cannot double-spend user balance
         const updatedUser = await User.findOneAndUpdate(
             { _id: userId, funds: { $gte: totalOrderCost } },
             { $inc: { funds: -totalOrderCost } },
@@ -68,7 +67,6 @@ class OrderService {
             const user = await User.findById(userId);
             const currentFunds = user ? (user.funds || 0) : 0;
 
-            // Audit rejected order in OrderModel
             const rejectedOrder = await OrderModel.create({
                 userId,
                 name,
@@ -102,7 +100,7 @@ class OrderService {
                 const totalCostBasis = (holding.qty * holding.avg) + (qty * price);
                 holding.qty = totalQty;
                 holding.avg = Number((totalCostBasis / totalQty).toFixed(2));
-                holding.price = price; // Latest execution/market price
+                holding.price = price;
                 holding.updatedAt = new Date();
                 await holding.save();
             } else {
@@ -150,7 +148,6 @@ class OrderService {
                 remainingFunds: balanceAfter
             };
         } catch (error) {
-            // Rollback funds if holding update failed unexpectedly
             await User.findByIdAndUpdate(userId, { $inc: { funds: totalOrderCost } });
             throw error;
         }
@@ -163,7 +160,6 @@ class OrderService {
         const totalSaleProceeds = Number((qty * price).toFixed(2));
 
         // 1. Atomic Holding Quantity Deduction:
-        // Prevents selling more shares than the user currently holds during concurrent requests
         const holding = await HoldingModel.findOneAndUpdate(
             { userId, name, qty: { $gte: qty } },
             { $inc: { qty: -qty } },
@@ -195,7 +191,6 @@ class OrderService {
             };
         }
 
-        // If holding quantity is 0 after deduction, clean up holding record
         if (holding.qty === 0) {
             await HoldingModel.deleteOne({ _id: holding._id });
         }
@@ -245,10 +240,85 @@ class OrderService {
     }
 
     /**
-     * Retrieves order history for a user
+     * Retrieves user orders with pagination, filtering & sorting
      */
-    static async getUserOrders(userId) {
-        return await OrderModel.find({ userId }).sort({ createdAt: -1 });
+    static async getUserOrders(userId, queryParams = {}) {
+        const {
+            page = 1,
+            limit = 50,
+            status,
+            mode,
+            symbol,
+            sortBy = "createdAt",
+            sortOrder = "desc",
+            dateFrom,
+            dateTo
+        } = queryParams;
+
+        const filter = { userId };
+
+        // 1. Status Filter
+        if (status && status !== "ALL") {
+            filter.status = status.toUpperCase();
+        }
+
+        // 2. Mode Filter (BUY / SELL)
+        if (mode && mode !== "ALL") {
+            filter.mode = mode.toUpperCase();
+        }
+
+        // 3. Symbol Search (Regex)
+        if (symbol && symbol.trim().length > 0) {
+            filter.name = { $regex: symbol.trim(), $options: "i" };
+        }
+
+        // 4. Date Range Filter
+        if (dateFrom || dateTo) {
+            filter.createdAt = {};
+            if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+            if (dateTo) filter.createdAt.$lte = new Date(dateTo);
+        }
+
+        // 5. Sorting
+        const validSortFields = ["createdAt", "price", "qty", "totalCost", "name"];
+        const sortField = validSortFields.includes(sortBy) ? sortBy : "createdAt";
+        const sortDirection = sortOrder === "asc" ? 1 : -1;
+        const sortOption = { [sortField]: sortDirection };
+
+        // 6. Pagination
+        const parsedPage = Math.max(1, parseInt(page, 10) || 1);
+        const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
+        const skip = (parsedPage - 1) * parsedLimit;
+
+        const [orders, totalOrders] = await Promise.all([
+            OrderModel.find(filter)
+                .sort(sortOption)
+                .skip(skip)
+                .limit(parsedLimit),
+            OrderModel.countDocuments(filter)
+        ]);
+
+        const totalPages = Math.ceil(totalOrders / parsedLimit) || 1;
+
+        return {
+            status: true,
+            data: orders,
+            pagination: {
+                totalOrders,
+                page: parsedPage,
+                limit: parsedLimit,
+                totalPages,
+                hasNextPage: parsedPage < totalPages,
+                hasPrevPage: parsedPage > 1
+            },
+            filtersApplied: {
+                status: status || "ALL",
+                mode: mode || "ALL",
+                symbol: symbol || null,
+                sortBy: sortField,
+                sortOrder: sortDirection === 1 ? "asc" : "desc"
+            }
+        };
     }
 }
 

@@ -1,43 +1,58 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState, useEffect, useCallback } from "react";
 import { io } from "socket.io-client";
 import { toast } from "react-toastify";
 import { API_URL } from "../config";
+import { walletApi, holdingsApi, ordersApi } from "../api/client";
+import { CardSkeleton } from "./common/LoadingState";
+import { ErrorState } from "./common/ErrorState";
 
 const Funds = () => {
     const [totalAddedFunds, setTotalAddedFunds] = useState(0);
     const [holdings, setHoldings] = useState([]);
     const [orders, setOrders] = useState([]);
+    const [transactions, setTransactions] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     // Modals & Forms
     const [showAddModal, setShowAddModal] = useState(false);
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
     const [fundAmount, setFundAmount] = useState("");
-    const [notification, setNotification] = useState("");
 
-    // Fetch Holdings, Orders & User Funds from Backend DB
-    const fetchData = () => {
-        axios.get(`${API_URL}/user/funds`, { withCredentials: true })
-            .then(res => {
-                if (res.data && res.data.totalAddedFunds !== undefined) {
-                    setTotalAddedFunds(res.data.totalAddedFunds);
-                }
-            })
-            .catch(err => console.error("Error fetching user funds:", err));
+    const fetchData = useCallback(async () => {
+        try {
+            const [fundsRes, holdingsRes, ordersRes, txRes] = await Promise.allSettled([
+                walletApi.getFunds(),
+                holdingsApi.getAllHoldings(),
+                ordersApi.getAllOrders(),
+                walletApi.getTransactions()
+            ]);
 
-        axios.get(`${API_URL}/allHoldings`, { withCredentials: true })
-            .then(res => setHoldings(res.data))
-            .catch(err => console.error("Error fetching holdings:", err));
-
-        axios.get(`${API_URL}/allOrders`, { withCredentials: true })
-            .then(res => setOrders(res.data))
-            .catch(err => console.error("Error fetching orders:", err));
-    };
+            if (fundsRes.status === "fulfilled" && fundsRes.value.data) {
+                setTotalAddedFunds(fundsRes.value.data.totalAddedFunds || 0);
+            }
+            if (holdingsRes.status === "fulfilled" && holdingsRes.value.data) {
+                setHoldings(holdingsRes.value.data);
+            }
+            if (ordersRes.status === "fulfilled" && ordersRes.value.data) {
+                const orderData = Array.isArray(ordersRes.value.data) ? ordersRes.value.data : ordersRes.value.data.data || [];
+                setOrders(orderData);
+            }
+            if (txRes.status === "fulfilled" && txRes.value.data && txRes.value.data.transactions) {
+                setTransactions(txRes.value.data.transactions);
+            }
+            setError(null);
+        } catch (err) {
+            setError("Failed to fetch wallet information.");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
         fetchData();
 
-        const socket = io(API_URL);
+        const socket = io(API_URL, { withCredentials: true });
         socket.on("priceUpdate", (livePrices) => {
             setHoldings(prevHoldings => {
                 if (!prevHoldings || prevHoldings.length === 0) return prevHoldings;
@@ -50,24 +65,20 @@ const Funds = () => {
             });
         });
 
-        const handlePortfolioUpdate = () => {
-            fetchData();
-        };
-
+        const handlePortfolioUpdate = () => fetchData();
         window.addEventListener("portfolioUpdated", handlePortfolioUpdate);
 
         return () => {
             socket.disconnect();
             window.removeEventListener("portfolioUpdated", handlePortfolioUpdate);
         };
-    }, []);
+    }, [fetchData]);
 
     // Financial Metrics
     const totalSpentOnStocks = holdings.reduce((sum, h) => sum + (h.qty * h.avg), 0);
     const currentPortfolioValue = holdings.reduce((sum, h) => sum + (h.qty * (h.price || h.avg)), 0);
     const totalGainsPnl = currentPortfolioValue - totalSpentOnStocks;
     const pnlPercentage = totalSpentOnStocks > 0 ? ((totalGainsPnl / totalSpentOnStocks) * 100).toFixed(2) : "0.00";
-
     const availableCash = Math.max(0, totalAddedFunds - totalSpentOnStocks);
 
     const handleAddFunds = async (e) => {
@@ -83,11 +94,8 @@ const Funds = () => {
         }
 
         try {
-            // Step 1: Create a Razorpay order on the backend
-            const orderRes = await axios.post(`${API_URL}/create-razorpay-order`,
-                { amount: amt },
-                { withCredentials: true }
-            );
+            // Step 1: Create a Razorpay order on backend
+            const orderRes = await walletApi.createRazorpayOrder({ amount: amt });
 
             if (!orderRes.data || !orderRes.data.order_id) {
                 toast.error("Failed to create payment order. Please try again.");
@@ -106,66 +114,53 @@ const Funds = () => {
                 image: "https://i.imgur.com/n5tjHFD.png",
                 order_id: order_id,
                 handler: async function (response) {
-                    // Step 3: Verify payment signature on backend
+                    // Step 3: Verify payment signature on backend with idempotency
                     try {
-                        const verifyRes = await axios.post(
-                            `${API_URL}/verify-razorpay-payment`,
-                            {
-                                amount: amt,
-                                razorpay_payment_id: response.razorpay_payment_id,
-                                razorpay_order_id: response.razorpay_order_id,
-                                razorpay_signature: response.razorpay_signature,
-                            },
-                            { withCredentials: true }
-                        );
+                        const verifyRes = await walletApi.verifyRazorpayPayment({
+                            amount: amt,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_signature: response.razorpay_signature,
+                        });
 
                         if (verifyRes.data && verifyRes.data.totalAddedFunds !== undefined) {
                             setTotalAddedFunds(verifyRes.data.totalAddedFunds);
                         }
-                        toast.success(`✓ ₹${amt.toLocaleString("en-IN")} deposited successfully! Payment ID: ${response.razorpay_payment_id}`);
+                        toast.success(`✓ ₹${amt.toLocaleString("en-IN")} deposited successfully!`);
+                        fetchData();
                         window.dispatchEvent(new Event("portfolioUpdated"));
                     } catch (verifyErr) {
-                        console.error("Payment verification failed:", verifyErr);
-                        toast.error("Payment verification failed. Payment ID: " + response.razorpay_payment_id);
+                        toast.error(verifyErr.response?.data?.message || "Payment verification failed.");
                     }
                 },
                 prefill: {
-                    name: "PulseTrade User",
-                    email: "user@pulsetrade.com",
+                    name: "PulseTrade Trader",
+                    email: "trader@pulsetrade.com",
                     contact: "9999999999",
-                },
-                notes: {
-                    purpose: "PulseTrade wallet deposit",
                 },
                 theme: {
                     color: "#10B981",
                 },
                 modal: {
                     ondismiss: function () {
-                        toast.info("Payment window closed. No funds deducted.");
+                        toast.info("Payment window closed.");
                     },
                 },
             };
 
             if (!window.Razorpay) {
-                toast.error("Razorpay SDK not loaded. Please refresh the page and try again.");
+                toast.error("Razorpay SDK loading. Please try again in a moment.");
                 return;
             }
 
             const rzp = new window.Razorpay(options);
             rzp.on("payment.failed", function (response) {
-                console.error("Razorpay payment failed details:", response.error);
-                if (response.error.reason === "international_transaction_not_allowed") {
-                    toast.error("International cards are disabled on this Razorpay test account. Please select Netbanking (SBI / HDFC) or UPI in the Razorpay popup for test payments!", { autoClose: 7000 });
-                } else {
-                    toast.error(`Payment failed: ${response.error.description || response.error.reason}`);
-                }
+                toast.error(`Payment failed: ${response.error?.description || "Transaction declined"}`);
             });
             rzp.open();
 
         } catch (err) {
-            console.error("Razorpay checkout error:", err);
-            toast.error("Could not initiate payment. Please check your connection and try again.");
+            toast.error(err.response?.data?.message || "Could not initiate payment.");
         }
 
         setFundAmount("");
@@ -180,19 +175,18 @@ const Funds = () => {
             return;
         }
         if (amt > availableCash) {
-            toast.error("Withdrawal amount exceeds available cash!");
+            toast.error("Withdrawal amount exceeds available cash margin!");
             return;
         }
 
         try {
-            const res = await axios.post(`${API_URL}/user/funds`, { amount: amt, action: "WITHDRAW" }, { withCredentials: true });
+            const res = await walletApi.updateFunds({ amount: amt, action: "WITHDRAW" });
 
-            if (res.data && res.data.totalAddedFunds) {
+            if (res.data && res.data.totalAddedFunds !== undefined) {
                 setTotalAddedFunds(res.data.totalAddedFunds);
-            } else {
-                setTotalAddedFunds(prev => prev - amt);
             }
-            toast.success(`Withdrawal request of ₹${amt.toLocaleString("en-IN")} processed successfully!`);
+            toast.success(`Withdrawal of ₹${amt.toLocaleString("en-IN")} processed successfully!`);
+            fetchData();
             window.dispatchEvent(new Event("portfolioUpdated"));
         } catch (err) {
             toast.error(err.response?.data?.message || "Failed to process withdrawal.");
@@ -202,35 +196,34 @@ const Funds = () => {
         setShowWithdrawModal(false);
     };
 
+    if (loading) {
+        return (
+            <div style={{ padding: "30px 20px", maxWidth: "1200px", margin: "0 auto" }}>
+                <CardSkeleton />
+                <CardSkeleton />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div style={{ padding: "30px 20px", maxWidth: "1200px", margin: "0 auto" }}>
+                <ErrorState message={error} onRetry={fetchData} />
+            </div>
+        );
+    }
+
     return (
         <div style={{ padding: "30px 20px", maxWidth: "1200px", margin: "0 auto", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
             
-            {/* Real-time Toast / Banner Notification */}
-            {notification && (
-                <div style={{
-                    padding: "12px 20px",
-                    borderRadius: "8px",
-                    marginBottom: "20px",
-                    background: notification.includes("✓") || notification.includes("Successful") ? "#DEF7EC" : "#FDE8E8",
-                    color: notification.includes("✓") || notification.includes("Successful") ? "#03543F" : "#9B1C1C",
-                    border: notification.includes("✓") || notification.includes("Successful") ? "1px solid #84E1BC" : "1px solid #F8B4B4",
-                    fontWeight: "600",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px"
-                }}>
-                    {notification}
-                </div>
-            )}
-
-            {/* Funds Header & Direct Action Bar */}
+            {/* Header & Actions */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
                 <div>
                     <h2 style={{ margin: "0 0 4px 0", fontWeight: "800", fontSize: "1.75rem", color: "#0F172A" }}>
                         Funds & Capital Management
                     </h2>
                     <span style={{ color: "#64748B", fontSize: "0.9rem" }}>
-                        Manage wallet deposits, available cash margins, and trading withdrawals via Razorpay Gateway.
+                        Manage wallet balance, margins, and simulated deposits via Razorpay Sandbox.
                     </span>
                 </div>
 
@@ -294,50 +287,11 @@ const Funds = () => {
                 </div>
             </div>
 
-            {/* Stock Purchases & Expenditure Breakdown Table */}
+            {/* Financial Ledger Audit Log */}
             <div style={{ background: "#fff", padding: "24px", borderRadius: "12px", border: "1px solid #E2E8F0", marginBottom: "24px" }}>
-                <h4 style={{ margin: "0 0 16px 0", color: "#0F172A" }}>Stock Purchases & Capital Allocation</h4>
-                {holdings.length === 0 ? (
-                    <p style={{ color: "#64748B", fontSize: "14px", margin: 0 }}>No active stock purchases yet.</p>
-                ) : (
-                    <div style={{ overflowX: "auto" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-                            <thead>
-                                <tr style={{ borderBottom: "2px solid #E2E8F0", textAlign: "left", color: "#64748B" }}>
-                                    <th style={{ padding: "10px" }}>Instrument</th>
-                                    <th style={{ padding: "10px", textAlign: "right" }}>Quantity</th>
-                                    <th style={{ padding: "10px", textAlign: "right" }}>Avg. Purchase Price</th>
-                                    <th style={{ padding: "10px", textAlign: "right" }}>Total Invested</th>
-                                    <th style={{ padding: "10px", textAlign: "right" }}>Current Value</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {holdings.map((h, i) => {
-                                    const invested = h.qty * h.avg;
-                                    const curVal = h.qty * (h.price || h.avg);
-                                    return (
-                                        <tr key={i} style={{ borderBottom: "1px solid #F1F5F9" }}>
-                                            <td style={{ padding: "12px", fontWeight: "600" }}>{h.name}</td>
-                                            <td style={{ padding: "12px", textAlign: "right" }}>{h.qty}</td>
-                                            <td style={{ padding: "12px", textAlign: "right" }}>₹{h.avg.toFixed(2)}</td>
-                                            <td style={{ padding: "12px", textAlign: "right", fontWeight: "600" }}>₹{invested.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                            <td style={{ padding: "12px", textAlign: "right", fontWeight: "600", color: curVal >= invested ? "#10B981" : "#EF4444" }}>
-                                                ₹{curVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-
-            {/* Orders Transaction History */}
-            <div style={{ background: "#fff", padding: "24px", borderRadius: "12px", border: "1px solid #E2E8F0" }}>
-                <h4 style={{ margin: "0 0 16px 0", color: "#0F172A" }}>Recent Trade Ledger ({orders.length})</h4>
-                {orders.length === 0 ? (
-                    <p style={{ color: "#64748B", fontSize: "14px", margin: 0 }}>No trade executions recorded.</p>
+                <h4 style={{ margin: "0 0 16px 0", color: "#0F172A" }}>Wallet Transaction Ledger ({transactions.length})</h4>
+                {transactions.length === 0 ? (
+                    <p style={{ color: "#64748B", fontSize: "14px", margin: 0 }}>No wallet transactions recorded yet.</p>
                 ) : (
                     <div style={{ overflowX: "auto" }}>
                         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
@@ -345,35 +299,37 @@ const Funds = () => {
                                 <tr style={{ borderBottom: "2px solid #E2E8F0", textAlign: "left", color: "#64748B" }}>
                                     <th style={{ padding: "10px" }}>Date</th>
                                     <th style={{ padding: "10px" }}>Type</th>
-                                    <th style={{ padding: "10px" }}>Instrument</th>
-                                    <th style={{ padding: "10px", textAlign: "right" }}>Qty</th>
-                                    <th style={{ padding: "10px", textAlign: "right" }}>Execution Price</th>
-                                    <th style={{ padding: "10px", textAlign: "right" }}>Total Value</th>
+                                    <th style={{ padding: "10px" }}>Description</th>
+                                    <th style={{ padding: "10px", textAlign: "right" }}>Amount</th>
+                                    <th style={{ padding: "10px", textAlign: "right" }}>Balance After</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {orders.map((ord, i) => {
-                                    const total = ord.qty * ord.price;
-                                    const isBuy = ord.mode === "BUY";
+                                {transactions.map((tx, idx) => {
+                                    const isCredit = tx.type === "DEPOSIT" || tx.type === "ORDER_SELL";
                                     return (
-                                        <tr key={i} style={{ borderBottom: "1px solid #F1F5F9" }}>
+                                        <tr key={tx._id || idx} style={{ borderBottom: "1px solid #F1F5F9" }}>
                                             <td style={{ padding: "12px", color: "#64748B" }}>
-                                                {ord.createdAt ? new Date(ord.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now"}
+                                                {tx.createdAt ? new Date(tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "—"}
                                             </td>
                                             <td style={{ padding: "12px" }}>
                                                 <span style={{
-                                                    background: isBuy ? "#DEF7EC" : "#FDE8E8",
-                                                    color: isBuy ? "#03543F" : "#9B1C1C",
-                                                    padding: "4px 8px", borderRadius: "4px", fontWeight: "700", fontSize: "12px"
+                                                    padding: "2px 6px",
+                                                    borderRadius: "4px",
+                                                    fontSize: "11px",
+                                                    fontWeight: 700,
+                                                    background: isCredit ? "#dcfce7" : "#fee2e2",
+                                                    color: isCredit ? "#15803d" : "#b91c1c"
                                                 }}>
-                                                    {ord.mode}
+                                                    {tx.type}
                                                 </span>
                                             </td>
-                                            <td style={{ padding: "12px", fontWeight: "600" }}>{ord.name}</td>
-                                            <td style={{ padding: "12px", textAlign: "right" }}>{ord.qty}</td>
-                                            <td style={{ padding: "12px", textAlign: "right" }}>₹{ord.price.toFixed(2)}</td>
-                                            <td style={{ padding: "12px", textAlign: "right", fontWeight: "600", color: isBuy ? "#D97706" : "#10B981" }}>
-                                                {isBuy ? "-" : "+"}₹{total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                            <td style={{ padding: "12px", color: "#334155" }}>{tx.description || tx.referenceId || "—"}</td>
+                                            <td style={{ padding: "12px", textAlign: "right", fontWeight: 600, color: isCredit ? "#10B981" : "#EF4444" }}>
+                                                {isCredit ? "+" : "-"}₹{tx.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                            </td>
+                                            <td style={{ padding: "12px", textAlign: "right", color: "#64748B" }}>
+                                                ₹{tx.balanceAfter.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                                             </td>
                                         </tr>
                                     );
@@ -395,7 +351,7 @@ const Funds = () => {
                         background: "#FFFFFF", padding: "24px", borderRadius: "12px",
                         width: "360px", boxShadow: "0 20px 40px -15px rgba(0,0,0,0.25)", border: "1px solid #E2E8F0"
                     }}>
-                        <h3 style={{ margin: "0 0 16px 0", fontSize: "1.15rem", fontWeight: "700", color: "#0F172A" }}>Add Funds</h3>
+                        <h3 style={{ margin: "0 0 16px 0", fontSize: "1.15rem", fontWeight: "700", color: "#0F172A" }}>Add Funds (Razorpay Sandbox)</h3>
 
                         <form onSubmit={handleAddFunds}>
                             <div style={{ marginBottom: "20px" }}>
@@ -425,7 +381,7 @@ const Funds = () => {
                                 color: "#065F46",
                                 lineHeight: "1.4"
                             }}>
-                                💡 <strong>Razorpay Test Mode Tip:</strong> In the payment popup, select <strong>Netbanking (SBI/HDFC)</strong> or <strong>UPI</strong> to instantly simulate test deposits!
+                                💡 <strong>Test Mode Tip:</strong> In the payment popup, select <strong>Netbanking (SBI/HDFC)</strong> or <strong>UPI</strong> to instantly simulate deposits!
                             </div>
 
                             <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
@@ -475,7 +431,8 @@ const Funds = () => {
                                 onChange={(e) => setFundAmount(e.target.value)}
                                 style={{
                                     width: "100%", padding: "10px", borderRadius: "6px",
-                                    border: "1px solid #ccc", marginBottom: "20px", fontSize: "16px"
+                                    border: "1px solid #ccc", marginBottom: "20px", fontSize: "16px",
+                                    boxSizing: "border-box"
                                 }}
                             />
 

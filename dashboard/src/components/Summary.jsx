@@ -1,37 +1,39 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
 import { io } from "socket.io-client";
 import { API_URL } from "../config";
+import { holdingsApi, walletApi } from "../api/client";
+import { CardSkeleton } from "./common/LoadingState";
 
 const Summary = ({ user }) => {
     const [holdings, setHoldings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [totalAddedFunds, setTotalAddedFunds] = useState(0);
 
-    const fetchHoldingsAndFunds = () => {
-        axios.get(`${API_URL}/user/funds`, { withCredentials: true })
-            .then((res) => {
-                if (res.data && res.data.totalAddedFunds !== undefined) {
-                    setTotalAddedFunds(res.data.totalAddedFunds);
-                }
-            })
-            .catch(() => {});
+    const fetchHoldingsAndFunds = useCallback(async () => {
+        try {
+            const [fundsRes, holdingsRes] = await Promise.allSettled([
+                walletApi.getFunds(),
+                holdingsApi.getAllHoldings()
+            ]);
 
-        axios.get(`${API_URL}/allHoldings`, { withCredentials: true })
-            .then((res) => {
-                setHoldings(res.data);
-                setLoading(false);
-            })
-            .catch(() => {
-                setLoading(false);
-            });
-    };
+            if (fundsRes.status === "fulfilled" && fundsRes.value.data) {
+                setTotalAddedFunds(fundsRes.value.data.totalAddedFunds || 0);
+            }
+            if (holdingsRes.status === "fulfilled" && holdingsRes.value.data) {
+                setHoldings(holdingsRes.value.data);
+            }
+        } catch (e) {
+            // Silently handled
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
         fetchHoldingsAndFunds();
 
-        const socket = io(API_URL);
+        const socket = io(API_URL, { withCredentials: true });
         socket.on("priceUpdate", (livePrices) => {
             setHoldings(prevHoldings => {
                 if (!prevHoldings || prevHoldings.length === 0) return prevHoldings;
@@ -44,17 +46,23 @@ const Summary = ({ user }) => {
             });
         });
 
-        const handlePortfolioUpdate = () => {
-            fetchHoldingsAndFunds();
-        };
-
+        const handlePortfolioUpdate = () => fetchHoldingsAndFunds();
         window.addEventListener("portfolioUpdated", handlePortfolioUpdate);
 
         return () => {
             socket.disconnect();
             window.removeEventListener("portfolioUpdated", handlePortfolioUpdate);
         };
-    }, []);
+    }, [fetchHoldingsAndFunds]);
+
+    if (loading) {
+        return (
+            <div style={{ padding: "20px" }}>
+                <CardSkeleton />
+                <CardSkeleton />
+            </div>
+        );
+    }
 
     // Portfolio & Margin metrics calculations
     const totalInvestment = holdings.reduce((sum, stock) => sum + (stock.qty * stock.avg), 0);
@@ -72,15 +80,17 @@ const Summary = ({ user }) => {
     };
 
     return (
-        <>
-            <div className="username">
-                <h6>Hi, {user.username || "Trader"}!</h6>
-                <hr className="divider" />
+        <div style={{ padding: "20px" }}>
+            <div className="username" style={{ marginBottom: "16px" }}>
+                <h6 style={{ margin: "0 0 8px 0", fontSize: "16px", color: "#1e293b", fontWeight: 700 }}>
+                    Hi, {user?.username || "Trader"}!
+                </h6>
+                <hr className="divider" style={{ border: "none", borderBottom: "1px solid #e2e8f0", margin: 0 }} />
             </div>
 
-            <div className="section">
-                <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <p style={{ margin: 0 }}>Equity & Margin</p>
+            <div className="section" style={{ background: "#fff", borderRadius: "12px", padding: "20px", border: "1px solid #e2e8f0", marginBottom: "20px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                    <p style={{ margin: 0, fontWeight: 700, color: "#1e293b", fontSize: "14px" }}>Equity & Margin</p>
                     <Link to="/funds" style={{ textDecoration: "none" }}>
                         <button style={{
                             background: "#10B981", color: "#FFFFFF", border: "none",
@@ -90,57 +100,59 @@ const Summary = ({ user }) => {
                             + Add Funds
                         </button>
                     </Link>
-                </span>
+                </div>
 
-                <div className="data">
+                <div className="data" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
                     <div className="first">
-                        <h3 style={{ color: "#2563EB" }}>{formatCurrency(availableMargin)}</h3>
-                        <p>Margin available</p>
+                        <h3 style={{ margin: "0 0 4px 0", color: "#2563EB", fontSize: "24px", fontWeight: 800 }}>
+                            {formatCurrency(availableMargin)}
+                        </h3>
+                        <p style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>Margin available</p>
                     </div>
-                    <hr />
 
-                    <div className="second">
-                        <p>
-                            Margins used <span style={{ fontWeight: "600", color: "#D97706" }}>{formatCurrency(marginsUsed)}</span>{" "}
-                        </p>
-                        <p>
-                            Opening balance <span>{formatCurrency(openingBalance)}</span>{" "}
-                        </p>
+                    <div className="second" style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+                        <div>
+                            <p style={{ margin: "0 0 4px 0", fontSize: "13px", color: "#64748b" }}>Margins used</p>
+                            <span style={{ fontWeight: "700", color: "#D97706", fontSize: "15px" }}>{formatCurrency(marginsUsed)}</span>
+                        </div>
+                        <div>
+                            <p style={{ margin: "0 0 4px 0", fontSize: "13px", color: "#64748b" }}>Opening balance</p>
+                            <span style={{ fontWeight: "700", color: "#1e293b", fontSize: "15px" }}>{formatCurrency(openingBalance)}</span>
+                        </div>
                     </div>
                 </div>
-                <hr className="divider" />
             </div>
 
-            <div className="section">
-                <span>
-                    <p>Holdings ({holdings.length})</p>
-                </span>
+            <div className="section" style={{ background: "#fff", borderRadius: "12px", padding: "20px", border: "1px solid #e2e8f0" }}>
+                <div style={{ marginBottom: "16px" }}>
+                    <p style={{ margin: 0, fontWeight: 700, color: "#1e293b", fontSize: "14px" }}>Holdings ({holdings.length})</p>
+                </div>
 
-                <div className="data">
+                <div className="data" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
                     <div className="first">
-                        <h3 className={isProfit ? "profit" : "loss"}>
+                        <h3 style={{ margin: "0 0 4px 0", color: isProfit ? "#10B981" : "#EF4444", fontSize: "24px", fontWeight: 800 }}>
                             {isProfit ? "+" : "-"}{formatCurrency(Math.abs(totalPnl))}{" "}
-                            <small style={{ color: isProfit ? "#4caf50" : "#f44336", fontSize: "14px" }}>
-                                {isProfit ? "+" : ""}{pnlPercentage}%
+                            <small style={{ fontSize: "14px", fontWeight: 600 }}>
+                                ({isProfit ? "+" : ""}{pnlPercentage}%)
                             </small>
                         </h3>
-                        <p>P&L (Profit & Loss)</p>
+                        <p style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>P&L (Profit & Loss)</p>
                     </div>
-                    <hr />
 
-                    <div className="second">
-                        <p>
-                            Current Value <span style={{ fontWeight: "600" }}>{formatCurrency(totalCurrentValue)}</span>{" "}
-                        </p>
-                        <p>
-                            Investment <span style={{ fontWeight: "600" }}>{formatCurrency(totalInvestment)}</span>{" "}
-                        </p>
+                    <div className="second" style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+                        <div>
+                            <p style={{ margin: "0 0 4px 0", fontSize: "13px", color: "#64748b" }}>Current Value</p>
+                            <span style={{ fontWeight: "700", color: "#1e293b", fontSize: "15px" }}>{formatCurrency(totalCurrentValue)}</span>
+                        </div>
+                        <div>
+                            <p style={{ margin: "0 0 4px 0", fontSize: "13px", color: "#64748b" }}>Investment</p>
+                            <span style={{ fontWeight: "700", color: "#1e293b", fontSize: "15px" }}>{formatCurrency(totalInvestment)}</span>
+                        </div>
                     </div>
                 </div>
-                <hr className="divider" />
             </div>
-        </>
+        </div>
     );
 };
 
-export default Summary;
+export default Summary;

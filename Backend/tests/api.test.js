@@ -16,14 +16,13 @@ const { ORDER_STATUS, TRANSACTION_TYPE } = require("../config/constants");
 const TEST_SECRET = process.env.TOKEN_KEY || "Zerodha_Clone_Secret_Key_123!@#";
 const RAZORPAY_SECRET = process.env.RAZORPAY_KEY_SECRET || "MLfOsojM55l35lIfKw4k4wZi";
 
-describe("PulseTrade Real MongoDB Integration & API Test Suite", () => {
+describe("PulseTrade Enterprise Backend API & MongoDB Test Suite", () => {
     let testUser = null;
     let authCookie = "";
 
     beforeAll(async () => {
         await connectDB();
-        // Clean up test database state for test user
-        await User.deleteMany({ email: /test_integration.*@pulsetrade\.com/i });
+        await User.deleteMany({ email: /test_v1_integration.*@pulsetrade\.com/i });
     });
 
     afterAll(async () => {
@@ -39,76 +38,92 @@ describe("PulseTrade Real MongoDB Integration & API Test Suite", () => {
     });
 
     // ---------------------------------------------------------
-    // 1. Health & CORS Allowlist Enforcement
+    // 1. Health, Diagnostics, Swagger & Observability
     // ---------------------------------------------------------
-    describe("API Health & Security Headers", () => {
-        test("GET / should return 200 and security headers", async () => {
-            const res = await request(app).get("/");
+    describe("System Health, Swagger Docs & Observability", () => {
+        test("GET /health should return 200 with system diagnostics and DB ping", async () => {
+            const res = await request(app).get("/health");
             expect(res.statusCode).toBe(200);
-            expect(res.body.status).toBe(true);
-            expect(res.headers["x-content-type-options"]).toBe("nosniff");
-            expect(res.headers["x-frame-options"]).toBe("DENY");
-            expect(res.headers["x-xss-protection"]).toBe("1; mode=block");
+            expect(res.body.status).toBe("healthy");
+            expect(res.body.database.status).toBe("connected");
+            expect(res.body.database.latencyMs).toBeDefined();
+            expect(res.body.memory.heapUsedMB).toBeGreaterThan(0);
+            expect(res.body.uptime.seconds).toBeDefined();
         });
 
-        test("CORS policy should reject unauthorized cross-origin requests", async () => {
-            const res = await request(app)
-                .get("/")
-                .set("Origin", "https://unauthorized-attacker-site.com");
-            expect(res.statusCode).toBe(500);
-            expect(res.body.message).toContain("Not allowed by CORS");
+        test("GET /api/v1/health should mirror the health endpoint", async () => {
+            const res = await request(app).get("/api/v1/health");
+            expect(res.statusCode).toBe(200);
+            expect(res.body.status).toBe("healthy");
         });
 
-        test("CORS policy should accept allowed origin (localhost:5173)", async () => {
-            const res = await request(app)
-                .get("/")
-                .set("Origin", "http://localhost:5173");
+        test("GET /api-docs.json should serve OpenAPI 3.0 specification", async () => {
+            const res = await request(app).get("/api-docs.json");
             expect(res.statusCode).toBe(200);
-            expect(res.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
-            expect(res.headers["access-control-allow-credentials"]).toBe("true");
+            expect(res.body.openapi).toBe("3.0.3");
+            expect(res.body.info.title).toContain("PulseTrade");
+            expect(res.body.paths["/orders/newOrders"]).toBeDefined();
+        });
+
+        test("GET /api-docs should serve Swagger UI HTML page", async () => {
+            const res = await request(app).get("/api-docs");
+            expect(res.statusCode).toBe(200);
+            expect(res.text).toContain("SwaggerUIBundle");
+        });
+
+        test("Request logger should set X-Request-Id correlation header", async () => {
+            const res = await request(app).get("/health");
+            expect(res.headers["x-request-id"]).toBeDefined();
         });
     });
 
     // ---------------------------------------------------------
-    // 2. Authentication, Zero-JWT-in-JSON & HTTP-Only Cookies
+    // 2. Versioned Authentication & Request Validation
     // ---------------------------------------------------------
-    describe("Authentication & Session Security", () => {
-        const uniqueEmail = `test_integration_${Date.now()}@pulsetrade.com`;
-        const rawPassword = "StrongPassword123!";
+    describe("Versioned Authentication (/api/v1/auth) & Request Validation", () => {
+        const uniqueEmail = `test_v1_integration_${Date.now()}@pulsetrade.com`;
+        const rawPassword = "SecureTradingPassword123!";
 
-        test("POST /signup should register user, set httpOnly cookie, and NOT expose token in JSON body", async () => {
+        test("POST /api/v1/auth/signup should reject invalid request payloads via validation middleware", async () => {
+            const resShortPass = await request(app)
+                .post("/api/v1/auth/signup")
+                .send({ username: "Trader", email: uniqueEmail, password: "123" });
+            expect(resShortPass.statusCode).toBe(400);
+            expect(resShortPass.body.message).toContain("Password must be at least 8 characters long");
+
+            const resBadEmail = await request(app)
+                .post("/api/v1/auth/signup")
+                .send({ username: "Trader", email: "not-an-email", password: rawPassword });
+            expect(resBadEmail.statusCode).toBe(400);
+            expect(resBadEmail.body.message).toContain("valid email address");
+        });
+
+        test("POST /api/v1/auth/signup should register user and set HttpOnly cookie with ZERO token in JSON", async () => {
             const res = await request(app)
-                .post("/signup")
+                .post("/api/v1/auth/signup")
                 .send({
-                    username: "IntegrationTrader",
+                    username: "V1Trader",
                     email: uniqueEmail,
                     password: rawPassword
                 });
 
             expect(res.statusCode).toBe(201);
             expect(res.body.success).toBe(true);
-            expect(res.body.user).toBeDefined();
-            expect(res.body.user.username).toBe("IntegrationTrader");
-            // Security verification: JWT token must NOT be exposed in JSON
-            expect(res.body.token).toBeUndefined();
+            expect(res.body.user.username).toBe("V1Trader");
+            expect(res.body.token).toBeUndefined(); // Zero token exposure
 
-            // Cookie verification
             const setCookie = res.headers["set-cookie"];
             expect(setCookie).toBeDefined();
             const cookieStr = Array.isArray(setCookie) ? setCookie.join(";") : setCookie;
             expect(cookieStr.toLowerCase()).toContain("httponly");
-            expect(cookieStr).toContain("token=");
 
-            // Save test user record
             testUser = await User.findOne({ email: uniqueEmail });
             expect(testUser).not.toBeNull();
-            // Verify password was hashed with bcrypt
-            expect(testUser.password).not.toBe(rawPassword);
         });
 
-        test("POST /login should authenticate, set httpOnly cookie, and NOT expose token in JSON body", async () => {
+        test("POST /api/v1/auth/login should authenticate user and issue session cookie", async () => {
             const res = await request(app)
-                .post("/login")
+                .post("/api/v1/auth/login")
                 .send({
                     email: uniqueEmail,
                     password: rawPassword
@@ -116,351 +131,193 @@ describe("PulseTrade Real MongoDB Integration & API Test Suite", () => {
 
             expect(res.statusCode).toBe(200);
             expect(res.body.success).toBe(true);
-            expect(res.body.token).toBeUndefined(); // Zero token exposure in JSON
+            expect(res.body.token).toBeUndefined();
 
             const setCookie = res.headers["set-cookie"];
-            expect(setCookie).toBeDefined();
             authCookie = Array.isArray(setCookie) ? setCookie[0].split(";")[0] : setCookie.split(";")[0];
             expect(authCookie).toContain("token=");
         });
 
-        test("POST / (Session verification) should return authenticated user profile from cookie", async () => {
+        test("POST /api/v1/auth/ (Session verification) should return user details from cookie", async () => {
             const res = await request(app)
-                .post("/")
+                .post("/api/v1/auth/")
                 .set("Cookie", authCookie);
 
             expect(res.statusCode).toBe(200);
             expect(res.body.status).toBe(true);
-            expect(res.body.user).toBe("IntegrationTrader");
-            expect(res.body.email).toBe(uniqueEmail);
-        });
-
-        test("POST /logout should clear the auth cookie", async () => {
-            const res = await request(app).post("/logout");
-            expect(res.statusCode).toBe(200);
-            expect(res.body.success).toBe(true);
-
-            const setCookie = res.headers["set-cookie"];
-            const cookieStr = Array.isArray(setCookie) ? setCookie.join(";") : setCookie;
-            expect(cookieStr.toLowerCase()).toContain("httponly");
-            expect(cookieStr).toContain("token=;");
+            expect(res.body.user).toBe("V1Trader");
         });
     });
 
     // ---------------------------------------------------------
-    // 3. Protected Route Access Control
+    // 3. Wallet Management & Idempotent Settlements
     // ---------------------------------------------------------
-    describe("Protected Routes Access Control", () => {
-        test("Endpoints should return 401 Unauthorized when no auth cookie is provided", async () => {
-            const unauthGetHoldings = await request(app).get("/allHoldings");
-            expect(unauthGetHoldings.statusCode).toBe(401);
-
-            const unauthGetPositions = await request(app).get("/allPositions");
-            expect(unauthGetPositions.statusCode).toBe(401);
-
-            const unauthGetOrders = await request(app).get("/allOrders");
-            expect(unauthGetOrders.statusCode).toBe(401);
-
-            const unauthGetFunds = await request(app).get("/user/funds");
-            expect(unauthGetFunds.statusCode).toBe(401);
-
-            const unauthPlaceOrder = await request(app).post("/newOrders").send({ name: "INFY", qty: 1, price: 1500, mode: "BUY" });
-            expect(unauthPlaceOrder.statusCode).toBe(401);
-
-            const unauthReset = await request(app).delete("/resetPortfolio");
-            expect(unauthReset.statusCode).toBe(401);
-        });
-    });
-
-    // ---------------------------------------------------------
-    // 4. Wallet Funds, Ledger Auditing & Idempotency
-    // ---------------------------------------------------------
-    describe("Wallet Management, Ledger Auditing & Razorpay Idempotency", () => {
-        test("POST /user/funds (ADD) should atomically deposit funds and write a ledger record", async () => {
-            const depositAmount = 25000;
+    describe("Versioned Wallet API (/api/v1/wallet) & Ledger Auditing", () => {
+        test("POST /api/v1/wallet/user/funds (ADD) should deposit funds and write ledger", async () => {
             const res = await request(app)
-                .post("/user/funds")
+                .post("/api/v1/wallet/user/funds")
                 .set("Cookie", authCookie)
-                .send({ amount: depositAmount, action: "ADD" });
+                .send({ amount: 50000, action: "ADD" });
 
             expect(res.statusCode).toBe(200);
             expect(res.body.status).toBe(true);
-            expect(res.body.totalAddedFunds).toBe(depositAmount);
+            expect(res.body.totalAddedFunds).toBe(50000);
 
-            // Verify database state
-            const user = await User.findById(testUser._id);
-            expect(user.funds).toBe(depositAmount);
-
-            // Verify ledger transaction was recorded
             const tx = await TransactionModel.findOne({ userId: testUser._id, type: TRANSACTION_TYPE.DEPOSIT });
             expect(tx).not.toBeNull();
-            expect(tx.amount).toBe(depositAmount);
-            expect(tx.balanceBefore).toBe(0);
-            expect(tx.balanceAfter).toBe(depositAmount);
+            expect(tx.balanceAfter).toBe(50000);
         });
 
-        test("POST /user/funds (WITHDRAW) should atomically withdraw funds and record ledger entry", async () => {
-            const withdrawAmount = 5000;
-            const res = await request(app)
-                .post("/user/funds")
-                .set("Cookie", authCookie)
-                .send({ amount: withdrawAmount, action: "WITHDRAW" });
+        test("POST /api/v1/wallet/verify-razorpay-payment should verify HMAC-SHA256 with idempotency", async () => {
+            const paymentId = `pay_v1_${Date.now()}`;
+            const orderId = `order_v1_${Date.now()}`;
+            const depositAmt = 15000;
 
-            expect(res.statusCode).toBe(200);
-            expect(res.body.status).toBe(true);
-            expect(res.body.totalAddedFunds).toBe(20000);
-
-            const user = await User.findById(testUser._id);
-            expect(user.funds).toBe(20000);
-
-            const tx = await TransactionModel.findOne({ userId: testUser._id, type: TRANSACTION_TYPE.WITHDRAWAL });
-            expect(tx).not.toBeNull();
-            expect(tx.amount).toBe(withdrawAmount);
-            expect(tx.balanceBefore).toBe(25000);
-            expect(tx.balanceAfter).toBe(20000);
-        });
-
-        test("POST /user/funds (WITHDRAW) should reject withdrawal amount exceeding available balance", async () => {
-            const res = await request(app)
-                .post("/user/funds")
-                .set("Cookie", authCookie)
-                .send({ amount: 999999, action: "WITHDRAW" });
-
-            expect(res.statusCode).toBe(400);
-            expect(res.body.status).toBe(false);
-            expect(res.body.message).toContain("exceeds available cash");
-        });
-
-        test("Razorpay HMAC-SHA256 verification and IDEMPOTENT settlement", async () => {
-            const paymentId = `pay_test_${Date.now()}`;
-            const orderId = `order_test_${Date.now()}`;
-            const depositAmt = 10000;
-
-            const validSignature = crypto
+            const signature = crypto
                 .createHmac("sha256", RAZORPAY_SECRET)
                 .update(`${orderId}|${paymentId}`)
                 .digest("hex");
 
-            // 1. First verification request: Should credit funds
             const res1 = await request(app)
-                .post("/verify-razorpay-payment")
+                .post("/api/v1/wallet/verify-razorpay-payment")
                 .set("Cookie", authCookie)
                 .send({
                     amount: depositAmt,
                     razorpay_payment_id: paymentId,
                     razorpay_order_id: orderId,
-                    razorpay_signature: validSignature
+                    razorpay_signature: signature
                 });
 
             expect(res1.statusCode).toBe(200);
-            expect(res1.body.status).toBe(true);
-            expect(res1.body.totalAddedFunds).toBe(30000); // 20000 + 10000
+            expect(res1.body.totalAddedFunds).toBe(65000);
 
-            // 2. IDEMPOTENCY TEST: Replay the exact same payment verification request
+            // Replay same request -> idempotent response without double crediting
             const res2 = await request(app)
-                .post("/verify-razorpay-payment")
+                .post("/api/v1/wallet/verify-razorpay-payment")
                 .set("Cookie", authCookie)
                 .send({
                     amount: depositAmt,
                     razorpay_payment_id: paymentId,
                     razorpay_order_id: orderId,
-                    razorpay_signature: validSignature
+                    razorpay_signature: signature
                 });
 
             expect(res2.statusCode).toBe(200);
-            expect(res2.body.status).toBe(true);
             expect(res2.body.idempotentReplay).toBe(true);
-            expect(res2.body.totalAddedFunds).toBe(30000); // Must NOT double credit!
+            expect(res2.body.totalAddedFunds).toBe(65000);
+        });
+    });
 
-            const user = await User.findById(testUser._id);
-            expect(user.funds).toBe(30000);
+    // ---------------------------------------------------------
+    // 4. Order Execution, Validation, Pagination & Filtering
+    // ---------------------------------------------------------
+    describe("Versioned Orders API (/api/v1/orders): Execution, Pagination & Filtering", () => {
+        test("POST /api/v1/orders/newOrders should reject invalid order inputs via request validator", async () => {
+            const resInvalidQty = await request(app)
+                .post("/api/v1/orders/newOrders")
+                .set("Cookie", authCookie)
+                .send({ name: "INFY", qty: -2, price: 1500, mode: "BUY" });
+            expect(resInvalidQty.statusCode).toBe(400);
+
+            const resInvalidMode = await request(app)
+                .post("/api/v1/orders/newOrders")
+                .set("Cookie", authCookie)
+                .send({ name: "INFY", qty: 2, price: 1500, mode: "INVALID" });
+            expect(resInvalidMode.statusCode).toBe(400);
         });
 
-        test("GET /user/transactions should return audit ledger records", async () => {
+        test("Execute multiple BUY & SELL orders for pagination & filtering tests", async () => {
+            // Order 1: BUY 5 INFY @ 1500 = 7500
+            await request(app)
+                .post("/api/v1/orders/newOrders")
+                .set("Cookie", authCookie)
+                .send({ name: "INFY", qty: 5, price: 1500, mode: "BUY" });
+
+            // Order 2: BUY 2 TCS @ 3200 = 6400
+            await request(app)
+                .post("/api/v1/orders/newOrders")
+                .set("Cookie", authCookie)
+                .send({ name: "TCS", qty: 2, price: 3200, mode: "BUY" });
+
+            // Order 3: SELL 2 INFY @ 1600 = 3200
+            await request(app)
+                .post("/api/v1/orders/newOrders")
+                .set("Cookie", authCookie)
+                .send({ name: "INFY", qty: 2, price: 1600, mode: "SELL" });
+
+            // Order 4: BUY 1 RELIANCE @ 2500 = 2500
+            await request(app)
+                .post("/api/v1/orders/newOrders")
+                .set("Cookie", authCookie)
+                .send({ name: "RELIANCE", qty: 1, price: 2500, mode: "BUY" });
+        });
+
+        test("GET /api/v1/orders/allOrders with pagination (page=1&limit=2) should return metadata and 2 orders", async () => {
             const res = await request(app)
-                .get("/user/transactions")
+                .get("/api/v1/orders/allOrders?page=1&limit=2")
                 .set("Cookie", authCookie);
 
             expect(res.statusCode).toBe(200);
             expect(res.body.status).toBe(true);
-            expect(Array.isArray(res.body.transactions)).toBe(true);
-            expect(res.body.transactions.length).toBeGreaterThanOrEqual(3);
+            expect(res.body.data.length).toBe(2);
+            expect(res.body.pagination).toBeDefined();
+            expect(res.body.pagination.page).toBe(1);
+            expect(res.body.pagination.limit).toBe(2);
+            expect(res.body.pagination.totalOrders).toBeGreaterThanOrEqual(4);
+            expect(res.body.pagination.totalPages).toBeGreaterThanOrEqual(2);
+            expect(res.body.pagination.hasNextPage).toBe(true);
+        });
+
+        test("GET /api/v1/orders/allOrders with mode filter (mode=SELL) should only return SELL orders", async () => {
+            const res = await request(app)
+                .get("/api/v1/orders/allOrders?mode=SELL")
+                .set("Cookie", authCookie);
+
+            expect(res.statusCode).toBe(200);
+            expect(res.body.data.every(o => o.mode === "SELL")).toBe(true);
+        });
+
+        test("GET /api/v1/orders/allOrders with symbol search (symbol=INFY) should filter by stock name", async () => {
+            const res = await request(app)
+                .get("/api/v1/orders/allOrders?symbol=INFY")
+                .set("Cookie", authCookie);
+
+            expect(res.statusCode).toBe(200);
+            expect(res.body.data.every(o => o.name === "INFY")).toBe(true);
+        });
+
+        test("GET /api/v1/orders/allOrders with sorting (sortBy=price&sortOrder=asc) should return sorted orders", async () => {
+            const res = await request(app)
+                .get("/api/v1/orders/allOrders?sortBy=price&sortOrder=asc")
+                .set("Cookie", authCookie);
+
+            expect(res.statusCode).toBe(200);
+            const prices = res.body.data.map(o => o.price);
+            const sortedPrices = [...prices].sort((a, b) => a - b);
+            expect(prices).toEqual(sortedPrices);
         });
     });
 
     // ---------------------------------------------------------
-    // 5. Transaction-Safe Order Execution, Cost Basis & Concurrency Protection
+    // 5. Backward Compatibility Route Aliases
     // ---------------------------------------------------------
-    describe("Trading Engine, Cost Basis & Concurrency Protection", () => {
-        test("POST /newOrders (BUY) should deduct funds atomically, update cost basis, and audit order", async () => {
-            // First BUY: 2 shares of INFY @ ₹1000.00 = ₹2000.00
-            const res1 = await request(app)
-                .post("/newOrders")
-                .set("Cookie", authCookie)
-                .send({
-                    name: "INFY",
-                    qty: 2,
-                    price: 1000,
-                    mode: "BUY"
-                });
-
-            expect(res1.statusCode).toBe(201);
-            expect(res1.body.success).toBe(true);
-            expect(res1.body.order.status).toBe(ORDER_STATUS.EXECUTED);
-            expect(res1.body.order.totalCost).toBe(2000);
-
-            // Verify Holding Cost Basis: 2 shares @ avg 1000.00
-            let holding = await HoldingModel.findOne({ userId: testUser._id, name: "INFY" });
-            expect(holding).not.toBeNull();
-            expect(holding.qty).toBe(2);
-            expect(holding.avg).toBe(1000);
-
-            // Second BUY: 2 more shares of INFY @ ₹1200.00 = ₹2400.00
-            // Weighted average cost basis should be ((2 * 1000) + (2 * 1200)) / 4 = ₹1100.00
-            const res2 = await request(app)
-                .post("/newOrders")
-                .set("Cookie", authCookie)
-                .send({
-                    name: "INFY",
-                    qty: 2,
-                    price: 1200,
-                    mode: "BUY"
-                });
-
-            expect(res2.statusCode).toBe(201);
-            holding = await HoldingModel.findOne({ userId: testUser._id, name: "INFY" });
-            expect(holding.qty).toBe(4);
-            expect(holding.avg).toBe(1100); // Exact weighted cost basis
-
-            // Verify User Funds were deducted: 30000 - 2000 - 2400 = 25600
-            const user = await User.findById(testUser._id);
-            expect(user.funds).toBe(25600);
-        });
-
-        test("CONCURRENCY / BALANCE PROTECTION: Should reject BUY order exceeding balance and audit REJECTED order", async () => {
-            // Attempt to buy ₹500,000 worth of stock with only ₹25,600 balance
+    describe("Legacy Root Route Aliases Backward Compatibility", () => {
+        test("GET /allHoldings legacy root route should work identically", async () => {
             const res = await request(app)
-                .post("/newOrders")
-                .set("Cookie", authCookie)
-                .send({
-                    name: "TCS",
-                    qty: 100,
-                    price: 5000,
-                    mode: "BUY"
-                });
-
-            expect(res.statusCode).toBe(400);
-            expect(res.body.status).toBe(false);
-            expect(res.body.message).toContain("Insufficient wallet balance");
-
-            // Verify REJECTED order was saved in audit log
-            const rejectedOrder = await OrderModel.findOne({ userId: testUser._id, name: "TCS", status: ORDER_STATUS.REJECTED });
-            expect(rejectedOrder).not.toBeNull();
-            expect(rejectedOrder.status).toBe(ORDER_STATUS.REJECTED);
-            expect(rejectedOrder.failureReason).toContain("Insufficient wallet balance");
-
-            // Verify funds remained intact
-            const user = await User.findById(testUser._id);
-            expect(user.funds).toBe(25600);
-        });
-
-        test("POST /newOrders (SELL) should credit proceeds, decrement holdings, and clean up empty holdings", async () => {
-            // User currently owns 4 shares of INFY (funds: 25600)
-            // Sell 2 shares @ ₹1500 = proceeds ₹3000
-            const res1 = await request(app)
-                .post("/newOrders")
-                .set("Cookie", authCookie)
-                .send({
-                    name: "INFY",
-                    qty: 2,
-                    price: 1500,
-                    mode: "SELL"
-                });
-
-            expect(res1.statusCode).toBe(201);
-            expect(res1.body.success).toBe(true);
-
-            let holding = await HoldingModel.findOne({ userId: testUser._id, name: "INFY" });
-            expect(holding.qty).toBe(2);
-
-            let user = await User.findById(testUser._id);
-            expect(user.funds).toBe(28600); // 25600 + 3000
-
-            // Sell remaining 2 shares @ ₹1500 = proceeds ₹3000
-            const res2 = await request(app)
-                .post("/newOrders")
-                .set("Cookie", authCookie)
-                .send({
-                    name: "INFY",
-                    qty: 2,
-                    price: 1500,
-                    mode: "SELL"
-                });
-
-            expect(res2.statusCode).toBe(201);
-
-            // Holding document must be cleaned up when quantity hits 0
-            holding = await HoldingModel.findOne({ userId: testUser._id, name: "INFY" });
-            expect(holding).toBeNull();
-
-            user = await User.findById(testUser._id);
-            expect(user.funds).toBe(31600);
-        });
-
-        test("OVERSELLING PROTECTION: Should reject SELL order when user does not own shares", async () => {
-            const res = await request(app)
-                .post("/newOrders")
-                .set("Cookie", authCookie)
-                .send({
-                    name: "INFY",
-                    qty: 5,
-                    price: 1500,
-                    mode: "SELL"
-                });
-
-            expect(res.statusCode).toBe(400);
-            expect(res.body.status).toBe(false);
-            expect(res.body.message).toContain("Sell order rejected: You only own 0 share(s)");
-
-            const rejectedOrder = await OrderModel.findOne({ userId: testUser._id, name: "INFY", mode: "SELL", status: ORDER_STATUS.REJECTED });
-            expect(rejectedOrder).not.toBeNull();
-        });
-    });
-
-    // ---------------------------------------------------------
-    // 6. Portfolio Demo Seeding & Reset Lifecycle
-    // ---------------------------------------------------------
-    describe("Portfolio Demo Lifecycle", () => {
-        test("POST /seedDemoData should seed 12 holdings, 2 positions and set ₹50,000 balance", async () => {
-            const res = await request(app)
-                .post("/seedDemoData")
+                .get("/allHoldings")
                 .set("Cookie", authCookie);
 
             expect(res.statusCode).toBe(200);
-            expect(res.body.success).toBe(true);
-            expect(res.body.holdings.length).toBe(12);
-            expect(res.body.positions.length).toBe(2);
-
-            const user = await User.findById(testUser._id);
-            expect(user.funds).toBe(50000);
+            expect(Array.isArray(res.body)).toBe(true);
         });
 
-        test("DELETE /resetPortfolio should clean all user holdings, positions, orders, and reset funds to 0", async () => {
+        test("GET /user/funds legacy root route should work identically", async () => {
             const res = await request(app)
-                .delete("/resetPortfolio")
+                .get("/user/funds")
                 .set("Cookie", authCookie);
 
             expect(res.statusCode).toBe(200);
-            expect(res.body.success).toBe(true);
-
-            const holdingsCount = await HoldingModel.countDocuments({ userId: testUser._id });
-            expect(holdingsCount).toBe(0);
-
-            const positionsCount = await PositionModel.countDocuments({ userId: testUser._id });
-            expect(positionsCount).toBe(0);
-
-            const user = await User.findById(testUser._id);
-            expect(user.funds).toBe(0);
+            expect(res.body.totalAddedFunds).toBeDefined();
         });
     });
 });

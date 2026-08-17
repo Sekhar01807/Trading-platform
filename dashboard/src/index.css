@@ -533,3 +533,81 @@ hr {
   font-size: 0.8rem;
   color: var(--text-secondary);
 }
+
+/* =========================================================
+   RESPONSIVE DESIGN & MOBILE ENHANCEMENTS (< 768px & < 1024px)
+   ========================================================= */
+
+@media screen and (max-width: 1024px) {
+  .dashboard-container {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .watchlist-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto;
+    max-height: 380px;
+    border-right: none;
+    border-bottom: 2px solid var(--border-color);
+  }
+
+  .watchlist-number {
+    display: none;
+  }
+
+  .content {
+    flex-basis: 100%;
+    width: 100%;
+    padding: 16px;
+    height: auto;
+  }
+
+  .row {
+    flex-direction: column;
+  }
+
+  .col {
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .topbar-container {
+    flex-direction: column;
+    height: auto !important;
+    padding: 12px 16px !important;
+    gap: 12px;
+  }
+
+  .indices-container {
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .order-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .order-table table {
+    min-width: 580px;
+  }
+
+  .actions {
+    position: static !important;
+    background: transparent !important;
+    justify-content: flex-start !important;
+    margin-top: 8px;
+  }
+
+  .action-window {
+    width: 92% !important;
+    left: 4% !important;
+    bottom: 20px !important;
+    top: auto !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+  }
+}

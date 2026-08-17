@@ -1,8 +1,10 @@
 const YahooFinance = require("yahoo-finance2").default;
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
+const jwt = require("jsonwebtoken");
 const { HoldingModel } = require("../model/HoldingModel");
 const { PositionModel } = require("../model/PositionModel");
 const { SYMBOL_MAP, INITIAL_PRICES } = require("../config/constants");
+const logger = require("../util/logger");
 
 class MarketTickerService {
     constructor() {
@@ -14,32 +16,112 @@ class MarketTickerService {
 
     initialize(io) {
         this.io = io;
+        this.setupSocketAuth();
         this.setupSocketHandlers();
         this.fetchLivePrices();
         this.intervalId = setInterval(() => this.fetchLivePrices(), 2500);
-        console.log("[MarketTicker] Initialized real-time market data feed.");
+        logger.info("[MarketTicker] Initialized real-time market data feed & authenticated socket engine.");
+    }
+
+    setupSocketAuth() {
+        if (!this.io) return;
+
+        // Socket.IO Handshake Authentication Middleware
+        this.io.use((socket, next) => {
+            try {
+                let token = null;
+
+                // Extract token from cookie handshake
+                if (socket.handshake.headers.cookie) {
+                    const cookies = socket.handshake.headers.cookie.split(";").reduce((acc, cookie) => {
+                        const [key, val] = cookie.trim().split("=");
+                        acc[key] = val;
+                        return acc;
+                    }, {});
+                    token = cookies.token;
+                }
+
+                // Or extract from auth payload
+                if (!token && socket.handshake.auth && socket.handshake.auth.token) {
+                    token = socket.handshake.auth.token;
+                }
+
+                if (token) {
+                    try {
+                        const decoded = jwt.verify(token, process.env.TOKEN_KEY);
+                        socket.userId = decoded.id;
+                        socket.isAuthenticated = true;
+                    } catch (e) {
+                        socket.isAuthenticated = false;
+                    }
+                } else {
+                    socket.isAuthenticated = false;
+                }
+
+                next();
+            } catch (err) {
+                next();
+            }
+        });
     }
 
     setupSocketHandlers() {
         if (!this.io) return;
 
         this.io.on("connection", (socket) => {
-            console.log(`[Socket.io] Client connected: ${socket.id}`);
+            const clientInfo = {
+                socketId: socket.id,
+                isAuthenticated: socket.isAuthenticated,
+                userId: socket.userId || "anonymous"
+            };
+
+            logger.info("[Socket.io] Client connected", clientInfo);
+
+            // Join private user room if authenticated
+            if (socket.userId) {
+                socket.join(`user_${socket.userId}`);
+            }
+
+            // Send initial live price snapshot
             socket.emit("priceUpdate", this.livePrices);
 
+            // Dynamic Symbol Subscriptions
             socket.on("subscribe", (symbols) => {
                 if (Array.isArray(symbols)) {
                     symbols.forEach(s => {
-                        if (SYMBOL_MAP[s]) this.subscribedSymbols.add(SYMBOL_MAP[s]);
+                        const cleanSym = String(s).trim().toUpperCase();
+                        if (SYMBOL_MAP[cleanSym]) {
+                            this.subscribedSymbols.add(SYMBOL_MAP[cleanSym]);
+                        }
                     });
                     this.fetchLivePrices();
                 }
             });
 
+            socket.on("unsubscribe", (symbols) => {
+                if (Array.isArray(symbols)) {
+                    symbols.forEach(s => {
+                        const cleanSym = String(s).trim().toUpperCase();
+                        if (SYMBOL_MAP[cleanSym]) {
+                            this.subscribedSymbols.delete(SYMBOL_MAP[cleanSym]);
+                        }
+                    });
+                }
+            });
+
             socket.on("disconnect", () => {
-                console.log(`[Socket.io] Client disconnected: ${socket.id}`);
+                logger.info("[Socket.io] Client disconnected", { socketId: socket.id });
             });
         });
+    }
+
+    /**
+     * Broadcasts private event to specific authenticated user
+     */
+    notifyUser(userId, eventName, payload) {
+        if (this.io && userId) {
+            this.io.to(`user_${userId}`).emit(eventName, payload);
+        }
     }
 
     async fetchLivePrices() {
@@ -61,17 +143,17 @@ class MarketTickerService {
                     });
                 }
             } catch (e) {
-                // Yahoo Finance API notice -> fallback to realistic simulated market movements
+                // Yahoo Finance API notice fallback
             }
 
-            // Apply price changes
+            // Apply simulated micro-ticks
             Object.keys(this.livePrices).forEach(key => {
                 const currentVal = newPrices[key] || this.livePrices[key];
                 const change = (Math.random() - 0.48) * (currentVal * 0.004);
                 this.livePrices[key] = parseFloat((currentVal + change).toFixed(2));
             });
 
-            // Update live market price across holdings & positions in DB
+            // Update database live prices
             for (const [stockName, priceVal] of Object.entries(this.livePrices)) {
                 await HoldingModel.updateMany({ name: stockName }, { $set: { price: priceVal } });
                 await PositionModel.updateMany({ name: stockName }, { $set: { price: priceVal } });

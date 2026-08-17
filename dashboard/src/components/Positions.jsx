@@ -1,31 +1,33 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState, useEffect, useCallback } from "react";
 import { io } from "socket.io-client";
 import { API_URL } from "../config";
+import { holdingsApi } from "../api/client";
+import { TableSkeleton } from "./common/LoadingState";
+import { EmptyState } from "./common/EmptyState";
+import { ErrorState } from "./common/ErrorState";
 
 const Positions = () => {
     const [allPositions, setAllPositions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const fetchPositions = () => {
-        axios.get(`${API_URL}/allPositions`, {
-            withCredentials: true
-        })
-            .then((res) => {
-                setAllPositions(res.data);
-                setLoading(false);
-            })
-            .catch((err) => {
-                setError("Error fetching positions. Please try again later.");
-                setLoading(false);
-            });
-    };
+    const fetchPositions = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await holdingsApi.getAllPositions();
+            setAllPositions(res.data);
+        } catch (err) {
+            setError("Failed to fetch positions. Please try again later.");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
         fetchPositions();
 
-        const socket = io(API_URL);
+        const socket = io(API_URL, { withCredentials: true });
         socket.on("priceUpdate", (livePrices) => {
             setAllPositions((prevPositions) => {
                 if (!prevPositions || prevPositions.length === 0) return prevPositions;
@@ -38,63 +40,57 @@ const Positions = () => {
             });
         });
 
-        const handlePortfolioUpdate = () => {
-            fetchPositions();
-        };
-
+        const handlePortfolioUpdate = () => fetchPositions();
         window.addEventListener("portfolioUpdated", handlePortfolioUpdate);
 
         return () => {
             socket.disconnect();
             window.removeEventListener("portfolioUpdated", handlePortfolioUpdate);
         };
-    }, []);
+    }, [fetchPositions]);
 
     if (loading) {
         return (
-            <div className="positions-container" style={{ textAlign: "center", padding: "50px" }}>
-                <p>Loading your positions...</p>
+            <div style={{ padding: "20px" }}>
+                <TableSkeleton rows={4} columns={7} />
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="positions-container" style={{ textAlign: "center", padding: "50px", color: "#df4949" }}>
-                <p>{error}</p>
+            <div style={{ padding: "20px" }}>
+                <ErrorState message={error} onRetry={fetchPositions} />
             </div>
         );
     }
 
     return (
-        <>
-            <h3 className="title">Positions ({allPositions.length})</h3>
+        <div style={{ padding: "20px" }}>
+            <h3 className="title" style={{ margin: "0 0 16px 0", fontSize: "18px", fontWeight: 700, color: "#1e293b" }}>
+                Positions ({allPositions.length})
+            </h3>
 
             {allPositions.length === 0 ? (
-                <div className="no-orders" style={{
-                    textAlign: "center",
-                    padding: "50px 20px",
-                    background: "#FAFAFA",
-                    borderRadius: "12px",
-                    border: "1px dashed #E5E7EB",
-                    marginTop: "20px"
-                }}>
-                    <p style={{ color: "#6B7280", margin: 0, fontSize: "14px" }}>
-                        You currently have no open intraday or derivative positions today.
-                    </p>
-                </div>
+                <EmptyState
+                    icon="📊"
+                    title="No Open Positions"
+                    description="You currently have no active intraday (MIS) or derivative positions today. Trade intraday from the watchlist to see active positions here."
+                    actionLabel="Explore Watchlist"
+                    onAction={() => window.dispatchEvent(new CustomEvent("openWatchlist"))}
+                />
             ) : (
-                <div className="order-table">
-                    <table>
+                <div className="order-table" style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Instrument</th>
-                                <th>Qty.</th>
-                                <th>Avg.</th>
-                                <th>LTP</th>
-                                <th>P&L</th>
-                                <th>Chg.</th>
+                            <tr style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left" }}>
+                                <th style={{ padding: "12px 16px", color: "#64748b", fontSize: "12px", textTransform: "uppercase" }}>Product</th>
+                                <th style={{ padding: "12px 16px", color: "#64748b", fontSize: "12px", textTransform: "uppercase" }}>Instrument</th>
+                                <th style={{ padding: "12px 16px", color: "#64748b", fontSize: "12px", textTransform: "uppercase" }}>Qty.</th>
+                                <th style={{ padding: "12px 16px", color: "#64748b", fontSize: "12px", textTransform: "uppercase" }}>Avg.</th>
+                                <th style={{ padding: "12px 16px", color: "#64748b", fontSize: "12px", textTransform: "uppercase" }}>LTP</th>
+                                <th style={{ padding: "12px 16px", color: "#64748b", fontSize: "12px", textTransform: "uppercase" }}>P&L</th>
+                                <th style={{ padding: "12px 16px", color: "#64748b", fontSize: "12px", textTransform: "uppercase" }}>Chg.</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -106,14 +102,18 @@ const Positions = () => {
                                 const dayClass = stock.isLoss ? "loss" : "profit";
 
                                 return (
-                                    <tr key={index}>
-                                        <td>{stock.product || "CNC"}</td>
-                                        <td>{stock.name}</td>
-                                        <td>{stock.qty}</td>
-                                        <td>{stock.avg.toFixed(2)}</td>
-                                        <td>{(stock.price || stock.avg).toFixed(2)}</td>
-                                        <td className={profClass}>{(pnl >= 0 ? "+" : "") + pnl.toFixed(2)}</td>
-                                        <td className={dayClass}>{stock.day || "0.00%"}</td>
+                                    <tr key={stock._id || index} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                                        <td style={{ padding: "12px 16px", fontSize: "13px" }}>
+                                            <span style={{ padding: "2px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, background: "#f1f5f9", color: "#475569" }}>
+                                                {stock.product || "CNC"}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: "12px 16px", fontSize: "13px", fontWeight: 600, color: "#1e293b" }}>{stock.name}</td>
+                                        <td style={{ padding: "12px 16px", fontSize: "13px", color: "#334155" }}>{stock.qty}</td>
+                                        <td style={{ padding: "12px 16px", fontSize: "13px", color: "#334155" }}>₹{stock.avg.toFixed(2)}</td>
+                                        <td style={{ padding: "12px 16px", fontSize: "13px", color: "#334155" }}>₹{(stock.price || stock.avg).toFixed(2)}</td>
+                                        <td className={profClass} style={{ padding: "12px 16px", fontSize: "13px" }}>{(pnl >= 0 ? "+" : "") + pnl.toFixed(2)}</td>
+                                        <td className={dayClass} style={{ padding: "12px 16px", fontSize: "13px" }}>{stock.day || "0.00%"}</td>
                                     </tr>
                                 );
                             })}
@@ -121,7 +121,7 @@ const Positions = () => {
                     </table>
                 </div>
             )}
-        </>
+        </div>
     );
 };
 
