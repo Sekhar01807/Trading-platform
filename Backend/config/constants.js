@@ -1,0 +1,163 @@
+// Symbol Map for National Stock Exchange (NSE) quotes via Yahoo Finance
+const SYMBOL_MAP = {
+    "BHARTIARTL": "BHARTIARTL.NS",
+    "HDFCBANK": "HDFCBANK.NS",
+    "HINDUNILVR": "HINDUNILVR.NS",
+    "INFY": "INFY.NS",
+    "ITC": "ITC.NS",
+    "KPITTECH": "KPITTECH.NS",
+    "M&M": "M&M.NS",
+    "RELIANCE": "RELIANCE.NS",
+    "SBIN": "SBIN.NS",
+    "TATAPOWER": "TATAPOWER.NS",
+    "TCS": "TCS.NS",
+    "WIPRO": "WIPRO.NS",
+    "EVEREADY": "EVEREADY.NS",
+    "JUBLFOOD": "JUBLFOOD.NS",
+    "ONGC": "ONGC.NS",
+    "QUICKHEAL": "QUICKHEAL.NS",
+    "HUL": "HINDUNILVR.NS",
+    "ICICIBANK": "ICICIBANK.NS",
+    "AXISBANK": "AXISBANK.NS",
+    "LT": "LT.NS",
+    "ASIANPAINT": "ASIANPAINT.NS",
+    "TITAN": "TITAN.NS",
+    "MARUTI": "MARUTI.NS",
+    "KOTAKBANK": "KOTAKBANK.NS",
+    "HCLTECH": "HCLTECH.NS",
+    "ADANIENT": "ADANIENT.NS",
+    "TATAMOTORS": "TATAMOTORS.NS",
+    "SUNPHARMA": "SUNPHARMA.NS",
+    "ULTRACEMCO": "ULTRACEMCO.NS",
+    "BAJFINANCE": "BAJFINANCE.NS",
+    "TATASTEEL": "TATASTEEL.NS",
+    "NTPC": "NTPC.NS",
+    "POWERGRID": "POWERGRID.NS",
+    "COALINDIA": "COALINDIA.NS",
+    "NESTLEIND": "NESTLEIND.NS",
+    "TECHM": "TECHM.NS",
+    "INDUSINDBK": "INDUSINDBK.NS",
+    "HEROMOTOCO": "HEROMOTOCO.NS",
+    "CIPLA": "CIPLA.NS",
+    "EICHERMOT": "EICHERMOT.NS",
+    "DRREDDY": "DRREDDY.NS",
+    "GRASIM": "GRASIM.NS",
+    "HDFCLIFE": "HDFCLIFE.NS",
+    "BPCL": "BPCL.NS",
+    "LTIM": "LTIM.NS",
+    "BRITANNIA": "BRITANNIA.NS",
+    "APOLLOHOSP": "APOLLOHOSP.NS",
+    "PIDILITIND": "PIDILITIND.NS",
+    "DLF": "DLF.NS",
+    "ZOMATO": "ZOMATO.NS",
+    "PAYTM": "PAYTM.NS",
+    "JIOFIN": "JIOFIN.NS",
+    "ADANIPORTS": "ADANIPORTS.NS",
+    "NIFTY 50": "^NSEI",
+    "SENSEX": "^BSESN"
+};
+
+const INITIAL_PRICES = {
+    "BHARTIARTL": 1180.50,
+    "HDFCBANK": 1522.35,
+    "HINDUNILVR": 2417.4,
+    "INFY": 1555.45,
+    "ITC": 435.2,
+    "KPITTECH": 266.45,
+    "M&M": 779.8,
+    "RELIANCE": 2112.4,
+    "SBIN": 785.4,
+    "SGBMAY29": 4719.0,
+    "TATAPOWER": 420.15,
+    "TCS": 3194.8,
+    "WIPRO": 577.75,
+    "EVEREADY": 312.35,
+    "JUBLFOOD": 3082.65,
+    "ONGC": 116.8,
+    "QUICKHEAL": 308.55,
+    "HUL": 512.4,
+    "ICICIBANK": 1120.3,
+    "AXISBANK": 1085.5,
+    "LT": 3540.2,
+    "ASIANPAINT": 2890.1,
+    "TITAN": 3450.75,
+    "MARUTI": 12450.0,
+    "KOTAKBANK": 1780.2,
+    "HCLTECH": 1620.5,
+    "ADANIENT": 3150.0,
+    "TATAMOTORS": 980.4,
+    "SUNPHARMA": 1540.6,
+    "ULTRACEMCO": 9850.0,
+    "BAJFINANCE": 6950.0,
+    "TATASTEEL": 165.4,
+    "NTPC": 360.2,
+    "POWERGRID": 290.5,
+    "COALINDIA": 480.3,
+    "NESTLEIND": 2510.0,
+    "TECHM": 1320.4,
+    "INDUSINDBK": 1420.0,
+    "HEROMOTOCO": 4520.0,
+    "CIPLA": 1480.0,
+    "EICHERMOT": 4650.0,
+    "DRREDDY": 6120.0,
+    "GRASIM": 2240.0,
+    "HDFCLIFE": 630.5,
+    "BPCL": 610.2,
+    "LTIM": 4950.0,
+    "BRITANNIA": 5180.0,
+    "APOLLOHOSP": 6250.0,
+    "PIDILITIND": 2980.0,
+    "DLF": 840.0,
+    "ZOMATO": 195.5,
+    "PAYTM": 410.2,
+    "JIOFIN": 355.8,
+    "ADANIPORTS": 1340.0,
+    "NIFTY 50": 24512.40,
+    "SENSEX": 80245.80
+};
+
+const ORDER_STATUS = {
+    PENDING: "PENDING",
+    EXECUTED: "EXECUTED",
+    REJECTED: "REJECTED",
+    CANCELLED: "CANCELLED"
+};
+
+const ORDER_MODE = {
+    BUY: "BUY",
+    SELL: "SELL"
+};
+
+const PRODUCT_TYPE = {
+    CNC: "CNC", // Cash and Carry (Equity Delivery)
+    MIS: "MIS"  // Margin Intraday Square-off
+};
+
+const ORDER_TYPE = {
+    MARKET: "MARKET",
+    LIMIT: "LIMIT"
+};
+
+const TRANSACTION_TYPE = {
+    DEPOSIT: "DEPOSIT",
+    WITHDRAWAL: "WITHDRAWAL",
+    ORDER_BUY: "ORDER_BUY",
+    ORDER_SELL: "ORDER_SELL"
+};
+
+const TRANSACTION_STATUS = {
+    SUCCESS: "SUCCESS",
+    FAILED: "FAILED",
+    PENDING: "PENDING"
+};
+
+module.exports = {
+    SYMBOL_MAP,
+    INITIAL_PRICES,
+    ORDER_STATUS,
+    ORDER_MODE,
+    PRODUCT_TYPE,
+    ORDER_TYPE,
+    TRANSACTION_TYPE,
+    TRANSACTION_STATUS
+};

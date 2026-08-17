@@ -8,6 +8,10 @@ import "react-toastify/dist/ReactToastify.css";
 import "./index.css";
 
 import { CookiesProvider } from "react-cookie";
+import axios from "axios";
+
+// Enable credentials globally so HTTP-only session cookies are automatically sent with all requests
+axios.defaults.withCredentials = true;
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(

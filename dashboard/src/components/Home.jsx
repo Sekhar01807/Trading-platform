@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCookies } from "react-cookie";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import Dashboard from "./Dashboard";
@@ -9,37 +8,26 @@ import { API_URL } from "../config";
 
 const Home = () => {
     const navigate = useNavigate();
-    const [cookies, setCookie, removeCookie] = useCookies(["token"]);
     const [user, setUser] = useState({ username: "", email: "", id: "" });
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const toastShown = useRef(false);
 
-    const clearAuth = () => {
-        localStorage.removeItem("token");
-        removeCookie("token", { path: "/" });
-        document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    const clearAuth = async () => {
+        try {
+            await axios.post(`${API_URL}/logout`, {}, { withCredentials: true });
+        } catch (e) {
+            // Ignore error on clearing session
+        }
     };
 
     useEffect(() => {
-        const verifyCookie = async () => {
-            const token = localStorage.getItem("token") || cookies.token;
-            if (!token) {
-                console.log("No token found, redirecting to login");
-                clearAuth();
-                navigate("/login", { replace: true });
-                return;
-            }
+        const verifySession = async () => {
             try {
-                console.log("Verifying token with backend...");
                 const { data } = await axios.post(
                     API_URL,
-                    { token },
-                    { 
-                        withCredentials: true,
-                        headers: { Authorization: `Bearer ${token}` }
-                    }
+                    {},
+                    { withCredentials: true }
                 );
-                console.log("Backend response:", data);
                 const { status, user: username, email, phone, bio, id, createdAt } = data;
                 if (status) {
                     const savedUsername = localStorage.getItem(`username_override_${id}`);
@@ -52,18 +40,16 @@ const Home = () => {
                         toastShown.current = true;
                     }
                 } else {
-                    console.log("Verification failed, redirecting to login...");
-                    clearAuth();
+                    await clearAuth();
                     navigate("/login", { replace: true });
                 }
             } catch (error) {
-                console.error("Verification error:", error);
-                clearAuth();
+                await clearAuth();
                 navigate("/login", { replace: true });
             }
         };
-        verifyCookie();
-    }, [cookies, navigate]);
+        verifySession();
+    }, [navigate]);
 
     const handleProfileUpdate = async (updatedFields) => {
         try {

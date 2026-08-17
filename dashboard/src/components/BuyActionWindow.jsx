@@ -21,10 +21,7 @@ const BuyActionWindow = ({ uid, initialPrice = 0, closeBuyWindow }) => {
   const dragStart = useRef({ x: 0, y: 0 });
 
   const fetchUserFunds = () => {
-    const token = localStorage.getItem("token");
-    const headers = { Authorization: `Bearer ${token}` };
-
-    axios.get(`${API_URL}/user/funds`, { withCredentials: true, headers })
+    axios.get(`${API_URL}/user/funds`, { withCredentials: true })
       .then((res) => {
         if (res.data && res.data.availableCash !== undefined) {
           setAvailableCash(res.data.availableCash);
@@ -100,7 +97,6 @@ const BuyActionWindow = ({ uid, initialPrice = 0, closeBuyWindow }) => {
         toast.warning("Margin required exceeds available cash in wallet!");
       }
 
-      const token = localStorage.getItem("token");
       await axios.post(
         `${API_URL}/newOrders`,
         {
@@ -110,8 +106,7 @@ const BuyActionWindow = ({ uid, initialPrice = 0, closeBuyWindow }) => {
           mode: "BUY",
         },
         { 
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${token}` }
+          withCredentials: true
         }
       );
       toast.success(`Bought ${stockQuantity} share(s) of ${uid} @ ₹${finalPrice.toFixed(2)} (${productType})!`);

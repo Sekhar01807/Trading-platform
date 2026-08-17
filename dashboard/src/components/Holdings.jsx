@@ -12,10 +12,8 @@ const Holdings = () => {
     const [seedingDemo, setSeedingDemo] = useState(false);
 
     const fetchHoldings = () => {
-        const token = localStorage.getItem("token");
         axios.get(`${API_URL}/allHoldings`, {
-            withCredentials: true,
-            headers: { Authorization: `Bearer ${token}` }
+            withCredentials: true
         })
             .then((res) => {
                 setAllHoldings(res.data);
@@ -58,13 +56,11 @@ const Holdings = () => {
     const handleLoadDemoData = async () => {
         try {
             setSeedingDemo(true);
-            const token = localStorage.getItem("token");
             await axios.post(
                 `${API_URL}/seedDemoData`,
                 {},
                 {
-                    withCredentials: true,
-                    headers: { Authorization: `Bearer ${token}` }
+                    withCredentials: true
                 }
             );
             fetchHoldings();
@@ -78,10 +74,8 @@ const Holdings = () => {
 
     const handleResetPortfolio = async () => {
         try {
-            const token = localStorage.getItem("token");
             await axios.delete(`${API_URL}/resetPortfolio`, {
-                withCredentials: true,
-                headers: { Authorization: `Bearer ${token}` }
+                withCredentials: true
             });
             fetchHoldings();
             window.dispatchEvent(new Event("portfolioUpdated"));

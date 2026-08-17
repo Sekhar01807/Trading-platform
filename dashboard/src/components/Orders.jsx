@@ -9,10 +9,8 @@ const Orders = () => {
     const [error, setError] = useState(null);
 
     const fetchOrders = () => {
-        const token = localStorage.getItem("token");
         axios.get(`${API_URL}/allOrders`, {
-            withCredentials: true,
-            headers: { Authorization: `Bearer ${token}` }
+            withCredentials: true
         })
             .then((res) => {
                 setAllOrders(res.data);

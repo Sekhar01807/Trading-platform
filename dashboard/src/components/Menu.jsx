@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useCookies } from "react-cookie";
 import axios from "axios";
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import { LANDING_URL } from "../config";
+import { LANDING_URL, API_URL } from "../config";
 
 const Menu = ({ user, onUsernameUpdate }) => {
     const location = useLocation();
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-    const [cookies, setCookie, removeCookie] = useCookies(["token"]);
     const [profilePic, setProfilePic] = useState(null);
 
     useEffect(() => {
@@ -25,10 +23,12 @@ const Menu = ({ user, onUsernameUpdate }) => {
         setIsProfileDropdownOpen(!isProfileDropdownOpen);
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        removeCookie("token", { path: "/" });
-        document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    const handleLogout = async () => {
+        try {
+            await axios.post(`${API_URL}/logout`, {}, { withCredentials: true });
+        } catch (e) {
+            // Ignore error on logout call
+        }
         window.location.href = LANDING_URL;
     };
 

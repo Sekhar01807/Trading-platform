@@ -1,4 +1,4 @@
-name: Zerodha Full-Stack CI Pipeline
+name: PulseTrade Full-Stack CI Pipeline
 
 on:
   push:
@@ -7,24 +7,86 @@ on:
     branches: [ main ]
 
 jobs:
-  test-backend:
+  # 1. Backend Integration Tests & Linting
+  backend-test:
+    name: Backend Tests & Database Integration
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Set up Node.js 18.x
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: 'Backend/package-lock.json'
 
       - name: Install Backend dependencies
         run: |
           cd Backend
-          npm install
+          npm ci || npm install
 
-      - name: Run Backend Unit Tests
+      - name: Run Backend Integration Test Suite
+        env:
+          ATLASDB_URL: ${{ secrets.ATLASDB_URL || 'mongodb+srv://pssekhar199189_db_user:r6y5Gsh6EP104psy@cluster0.b872qiu.mongodb.net/zerodha?appName=Cluster0' }}
+          TOKEN_KEY: ${{ secrets.TOKEN_KEY || 'Zerodha_Clone_Secret_Key_123!@#' }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID || 'rzp_test_TM59RmCnldP02C' }}
+          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET || 'MLfOsojM55l35lIfKw4k4wZi' }}
+          NODE_ENV: test
         run: |
           cd Backend
           npm test
+
+  # 2. Dashboard React App Build Validation
+  dashboard-build:
+    name: Build React Trading Dashboard
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 18.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: 'dashboard/package-lock.json'
+
+      - name: Install Dashboard dependencies
+        run: |
+          cd dashboard
+          npm ci || npm install
+
+      - name: Build Dashboard Production Bundle
+        run: |
+          cd dashboard
+          npm run build
+
+  # 3. Frontend Marketing React App Build Validation
+  frontend-build:
+    name: Build React Marketing Portal
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 18.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install Frontend dependencies
+        run: |
+          cd frontend
+          npm ci || npm install
+
+      - name: Build Frontend Production Bundle
+        run: |
+          cd frontend
+          npm run build

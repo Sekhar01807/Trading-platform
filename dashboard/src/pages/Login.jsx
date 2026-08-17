@@ -17,10 +17,13 @@ const Login = () => {
     const { email, password } = inputValue;
 
     React.useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (token) {
-            navigate("/", { replace: true });
-        }
+        axios.post(API_URL, {}, { withCredentials: true })
+            .then(({ data }) => {
+                if (data && data.status) {
+                    navigate("/", { replace: true });
+                }
+            })
+            .catch(() => {});
     }, [navigate]);
 
     const handleOnChange = (e) => {
@@ -50,12 +53,8 @@ const Login = () => {
                 },
                 { withCredentials: true }
             );
-            const { success, message, token } = data;
+            const { success, message } = data;
             if (success) {
-                if (token) {
-                    localStorage.setItem("token", token);
-                    document.cookie = `token=${token}; path=/; max-age=${3 * 24 * 60 * 60}; SameSite=Lax`;
-                }
                 handleSuccess(message || "Welcome back!");
                 setTimeout(() => {
                     navigate("/");
@@ -65,7 +64,7 @@ const Login = () => {
             }
         } catch (error) {
             console.error("Login error:", error);
-            handleError("Login failed. Please check your network connection.");
+            handleError(error.response?.data?.message || "Login failed. Please check your credentials.");
         }
         setInputValue({
             email: "",

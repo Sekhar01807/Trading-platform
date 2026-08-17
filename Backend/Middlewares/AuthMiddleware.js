@@ -1,55 +1,98 @@
 const User = require("../model/UserModel");
-require("dotenv").config();
 const jwt = require("jsonwebtoken");
 
-module.exports.userVerification = (req, res) => {
-    const token = req.cookies.token || 
-                  (req.headers.authorization && req.headers.authorization.split(" ")[1]) || 
-                  req.body.token;
-
-    if (!token) {
-        return res.json({ status: false, message: "No token provided" });
+const extractToken = (req) => {
+    if (req.cookies && req.cookies.token) {
+        return req.cookies.token;
     }
-    jwt.verify(token, process.env.TOKEN_KEY, async (err, data) => {
-        if (err) {
-            return res.json({ status: false, message: "Invalid token" });
-        } else {
-            const user = await User.findById(data.id);
-            if (user) return res.json({ 
-                status: true, 
-                user: user.username, 
-                email: user.email, 
-                phone: user.phone || "", 
-                bio: user.bio || "", 
-                id: user._id, 
-                createdAt: user.createdAt 
-            });
-            else return res.json({ status: false, message: "User not found" });
+    if (req.headers && req.headers.authorization) {
+        const parts = req.headers.authorization.split(" ");
+        if (parts.length === 2 && /^Bearer$/i.test(parts[0])) {
+            return parts[1];
         }
-    });
+    }
+    if (req.body && req.body.token) {
+        return req.body.token;
+    }
+    return null;
 };
 
-module.exports.authenticateUser = (req, res, next) => {
-    const token = req.cookies.token || 
-                  (req.headers.authorization && req.headers.authorization.split(" ")[1]) || 
-                  req.body.token;
+const getUserIdFromReq = (req) => {
+    const token = extractToken(req);
+    if (!token) return null;
+    try {
+        const decoded = jwt.verify(token, process.env.TOKEN_KEY);
+        return decoded.id;
+    } catch (err) {
+        return null;
+    }
+};
+
+const authenticateUser = async (req, res, next) => {
+    const token = extractToken(req);
 
     if (!token) {
-        return res.status(401).json({ status: false, message: "Authentication required" });
+        return res.status(401).json({ 
+            status: false, 
+            message: "Unauthorized access: Please log in." 
+        });
     }
-    jwt.verify(token, process.env.TOKEN_KEY, async (err, data) => {
-        if (err) {
-            return res.status(401).json({ status: false, message: "Invalid or expired token" });
+
+    try {
+        const decoded = jwt.verify(token, process.env.TOKEN_KEY);
+        const user = await User.findById(decoded.id);
+
+        if (!user) {
+            return res.status(401).json({ 
+                status: false, 
+                message: "User session expired or user no longer exists." 
+            });
         }
-        try {
-            const user = await User.findById(data.id);
-            if (!user) {
-                return res.status(401).json({ status: false, message: "User not found" });
-            }
-            req.user = user;
-            next();
-        } catch (error) {
-            return res.status(500).json({ status: false, message: "Server authentication error" });
+
+        req.user = user;
+        req.userId = user._id;
+        next();
+    } catch (error) {
+        return res.status(401).json({ 
+            status: false, 
+            message: "Invalid or expired token. Please log in again." 
+        });
+    }
+};
+
+const userVerification = async (req, res) => {
+    const token = extractToken(req);
+
+    if (!token) {
+        return res.status(401).json({ status: false, message: "No token provided" });
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.TOKEN_KEY);
+        const user = await User.findById(decoded.id);
+
+        if (!user) {
+            return res.status(401).json({ status: false, message: "User not found" });
         }
-    });
+
+        return res.status(200).json({ 
+            status: true, 
+            user: user.username, 
+            email: user.email, 
+            phone: user.phone || "", 
+            bio: user.bio || "", 
+            funds: user.funds || 0,
+            id: user._id, 
+            createdAt: user.createdAt 
+        });
+    } catch (err) {
+        return res.status(401).json({ status: false, message: "Invalid or expired token" });
+    }
+};
+
+module.exports = {
+    extractToken,
+    getUserIdFromReq,
+    authenticateUser,
+    userVerification
 };

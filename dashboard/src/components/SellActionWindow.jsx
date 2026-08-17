@@ -22,10 +22,7 @@ const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
   const dragStart = useRef({ x: 0, y: 0 });
 
   const fetchData = () => {
-    const token = localStorage.getItem("token");
-    const headers = { Authorization: `Bearer ${token}` };
-
-    axios.get(`${API_URL}/user/funds`, { withCredentials: true, headers })
+    axios.get(`${API_URL}/user/funds`, { withCredentials: true })
       .then((res) => {
         if (res.data && res.data.availableCash !== undefined) {
           setAvailableCash(res.data.availableCash);
@@ -33,7 +30,7 @@ const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
       })
       .catch(() => {});
 
-    axios.get(`${API_URL}/allHoldings`, { withCredentials: true, headers })
+    axios.get(`${API_URL}/allHoldings`, { withCredentials: true })
       .then((res) => {
         const holdings = res.data || [];
         const holdingItem = holdings.find((h) => h.name === uid);
@@ -106,7 +103,6 @@ const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
   const handleSellClick = async () => {
     try {
       const finalPrice = orderType === "MARKET" ? liveLtp : (Number(stockPrice) > 0 ? Number(stockPrice) : liveLtp);
-      const token = localStorage.getItem("token");
       await axios.post(
         `${API_URL}/newOrders`,
         {
@@ -116,8 +112,7 @@ const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
           mode: "SELL",
         },
         { 
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${token}` }
+          withCredentials: true
         }
       );
       toast.success(`Sold ${stockQuantity} share(s) of ${uid} @ ₹${finalPrice.toFixed(2)} (${productType})!`);

@@ -9,10 +9,8 @@ const Positions = () => {
     const [error, setError] = useState(null);
 
     const fetchPositions = () => {
-        const token = localStorage.getItem("token");
         axios.get(`${API_URL}/allPositions`, {
-            withCredentials: true,
-            headers: { Authorization: `Bearer ${token}` }
+            withCredentials: true
         })
             .then((res) => {
                 setAllPositions(res.data);

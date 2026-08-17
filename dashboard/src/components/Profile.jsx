@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useCookies } from "react-cookie";
 import axios from "axios";
 import { LANDING_URL, API_URL } from "../config";
 
@@ -22,7 +21,6 @@ import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 
 const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
-    const [cookies, setCookie, removeCookie] = useCookies(["token"]);
     const [profilePic, setProfilePic] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
 
@@ -41,19 +39,13 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
     const [totalAddedFunds, setTotalAddedFunds] = useState(0);
 
     useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (token) {
-            axios.get(`${API_URL}/user/funds`, {
-                withCredentials: true,
-                headers: { Authorization: `Bearer ${token}` }
-            })
+        axios.get(`${API_URL}/user/funds`, { withCredentials: true })
             .then(res => {
                 if (res.data && res.data.totalAddedFunds !== undefined) {
                     setTotalAddedFunds(res.data.totalAddedFunds);
                 }
             })
             .catch(() => {});
-        }
     }, []);
 
     // Keep form data synchronized when user object updates
@@ -78,14 +70,11 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
 
     // Fetch user's real holdings and orders from backend
     useEffect(() => {
-        const token = localStorage.getItem("token");
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-        axios.get(`${API_URL}/allHoldings`, { withCredentials: true, headers })
+        axios.get(`${API_URL}/allHoldings`, { withCredentials: true })
             .then(res => setHoldings(res.data))
             .catch(() => {});
 
-        axios.get(`${API_URL}/allOrders`, { withCredentials: true, headers })
+        axios.get(`${API_URL}/allOrders`, { withCredentials: true })
             .then(res => setOrders(res.data))
             .catch(() => {});
     }, []);
@@ -128,10 +117,12 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
         setIsEditing(false);
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        removeCookie("token", { path: "/" });
-        document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    const handleLogout = async () => {
+        try {
+            await axios.post(`${API_URL}/logout`, {}, { withCredentials: true });
+        } catch (e) {
+            // Ignore error on logout
+        }
         window.location.href = LANDING_URL;
     };
 

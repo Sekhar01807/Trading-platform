@@ -19,10 +19,13 @@ const Signup = () => {
     const { email, password, username } = inputValue;
 
     React.useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (token) {
-            navigate("/", { replace: true });
-        }
+        axios.post(API_URL, {}, { withCredentials: true })
+            .then(({ data }) => {
+                if (data && data.status) {
+                    navigate("/", { replace: true });
+                }
+            })
+            .catch(() => {});
     }, [navigate]);
 
     const handleOnChange = (e) => {
@@ -52,12 +55,8 @@ const Signup = () => {
                 },
                 { withCredentials: true }
             );
-            const { success, message, token } = data;
+            const { success, message } = data;
             if (success) {
-                if (token) {
-                    localStorage.setItem("token", token);
-                    document.cookie = `token=${token}; path=/; max-age=${3 * 24 * 60 * 60}; SameSite=Lax`;
-                }
                 handleSuccess("Account created! Entering trading workspace...");
                 setTimeout(() => {
                     navigate("/");
@@ -67,7 +66,7 @@ const Signup = () => {
             }
         } catch (error) {
             console.error("Signup error:", error);
-            handleError("Signup failed. Please try again.");
+            handleError(error.response?.data?.message || "Signup failed. Please try again.");
         }
         setInputValue({
             email: "",

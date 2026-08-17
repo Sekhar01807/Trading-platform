@@ -13,15 +13,11 @@ const Funds = () => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
     const [fundAmount, setFundAmount] = useState("");
-    const [paymentMethod, setPaymentMethod] = useState("Stripe Checkout");
     const [notification, setNotification] = useState("");
 
     // Fetch Holdings, Orders & User Funds from Backend DB
     const fetchData = () => {
-        const token = localStorage.getItem("token");
-        const headers = { Authorization: `Bearer ${token}` };
-
-        axios.get(`${API_URL}/user/funds`, { withCredentials: true, headers })
+        axios.get(`${API_URL}/user/funds`, { withCredentials: true })
             .then(res => {
                 if (res.data && res.data.totalAddedFunds !== undefined) {
                     setTotalAddedFunds(res.data.totalAddedFunds);
@@ -29,42 +25,17 @@ const Funds = () => {
             })
             .catch(err => console.error("Error fetching user funds:", err));
 
-        axios.get(`${API_URL}/allHoldings`, { withCredentials: true, headers })
+        axios.get(`${API_URL}/allHoldings`, { withCredentials: true })
             .then(res => setHoldings(res.data))
             .catch(err => console.error("Error fetching holdings:", err));
 
-        axios.get(`${API_URL}/allOrders`, { withCredentials: true, headers })
+        axios.get(`${API_URL}/allOrders`, { withCredentials: true })
             .then(res => setOrders(res.data))
             .catch(err => console.error("Error fetching orders:", err));
     };
 
     useEffect(() => {
         fetchData();
-
-        // Check if returning from Stripe Hosted Checkout Page
-        const queryParams = new URLSearchParams(window.location.search);
-        const isSuccess = queryParams.get("payment_success");
-        const depositAmt = parseFloat(queryParams.get("amount"));
-
-        if (isSuccess === "true" && !isNaN(depositAmt) && depositAmt > 0) {
-            const token = localStorage.getItem("token");
-            const headers = { Authorization: `Bearer ${token}` };
-
-            axios.post(`${API_URL}/user/funds`, { amount: depositAmt, action: "ADD" }, { withCredentials: true, headers })
-                .then(res => {
-                    if (res.data && res.data.totalAddedFunds !== undefined) {
-                        setTotalAddedFunds(res.data.totalAddedFunds);
-                    }
-                    toast.success(`Stripe Payment Verified! ₹${depositAmt.toLocaleString("en-IN")} deposited.`);
-                    window.dispatchEvent(new Event("portfolioUpdated"));
-                    // Clean URL query params
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                })
-                .catch(() => {});
-        } else if (queryParams.get("payment_cancel") === "true") {
-            toast.warn("Payment cancelled on checkout page.");
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
 
         const socket = io(API_URL);
         socket.on("priceUpdate", (livePrices) => {
@@ -112,13 +83,10 @@ const Funds = () => {
         }
 
         try {
-            const token = localStorage.getItem("token");
-            const headers = { Authorization: `Bearer ${token}` };
-
             // Step 1: Create a Razorpay order on the backend
             const orderRes = await axios.post(`${API_URL}/create-razorpay-order`,
                 { amount: amt },
-                { withCredentials: true, headers }
+                { withCredentials: true }
             );
 
             if (!orderRes.data || !orderRes.data.order_id) {
@@ -148,7 +116,7 @@ const Funds = () => {
                                 razorpay_order_id: response.razorpay_order_id,
                                 razorpay_signature: response.razorpay_signature,
                             },
-                            { withCredentials: true, headers }
+                            { withCredentials: true }
                         );
 
                         if (verifyRes.data && verifyRes.data.totalAddedFunds !== undefined) {
@@ -217,9 +185,7 @@ const Funds = () => {
         }
 
         try {
-            const token = localStorage.getItem("token");
-            const headers = { Authorization: `Bearer ${token}` };
-            const res = await axios.post(`${API_URL}/user/funds`, { amount: amt, action: "WITHDRAW" }, { withCredentials: true, headers });
+            const res = await axios.post(`${API_URL}/user/funds`, { amount: amt, action: "WITHDRAW" }, { withCredentials: true });
 
             if (res.data && res.data.totalAddedFunds) {
                 setTotalAddedFunds(res.data.totalAddedFunds);

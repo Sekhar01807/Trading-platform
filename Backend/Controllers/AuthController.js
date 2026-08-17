@@ -9,7 +9,7 @@ const isValidEmail = (email) => {
     return typeof email === "string" && emailRegex.test(email.trim());
 };
 
-module.exports.Signup = async (req, res, next) => {
+const Signup = async (req, res, next) => {
     try {
         const { email, password, username, createdAt } = req.body;
 
@@ -38,23 +38,29 @@ module.exports.Signup = async (req, res, next) => {
             email: sanitizedEmail,
             password,
             username: sanitizedUsername,
-            createdAt
+            createdAt: createdAt || new Date()
         });
 
         const token = createSecretToken(user._id);
+        const isProduction = process.env.NODE_ENV === "production";
 
+        // Set secure HTTP-only cookie with zero JavaScript access
         res.cookie("token", token, {
-            withCredentials: true,
-            httpOnly: false,
-            sameSite: "none",
-            secure: true
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
+            maxAge: 3 * 24 * 60 * 60 * 1000 // 3 days
         });
 
+        // Zero token exposure in JSON payload
         res.status(201).json({
             message: "User signed up successfully",
             success: true,
-            user: user.username,
-            token
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email
+            }
         });
     } catch (error) {
         console.error("Signup error:", error);
@@ -62,7 +68,7 @@ module.exports.Signup = async (req, res, next) => {
     }
 };
 
-module.exports.Login = async (req, res, next) => {
+const Login = async (req, res, next) => {
     try {
         const { email, password } = req.body;
 
@@ -87,19 +93,26 @@ module.exports.Login = async (req, res, next) => {
         }
 
         const token = createSecretToken(user._id);
+        const isProduction = process.env.NODE_ENV === "production";
 
+        // Set secure HTTP-only cookie
         res.cookie("token", token, {
-            withCredentials: true,
-            httpOnly: false,
-            sameSite: "none",
-            secure: true
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
+            maxAge: 3 * 24 * 60 * 60 * 1000 // 3 days
         });
 
+        // Zero token exposure in JSON payload
         res.status(200).json({
             message: "User logged in successfully",
             success: true,
-            user: user.username,
-            token
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                funds: user.funds || 0
+            }
         });
     } catch (error) {
         console.error("Login error:", error);
@@ -107,24 +120,29 @@ module.exports.Login = async (req, res, next) => {
     }
 };
 
-module.exports.UpdateProfile = async (req, res) => {
+const Logout = (req, res) => {
+    const isProduction = process.env.NODE_ENV === "production";
+    res.clearCookie("token", {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
+        path: "/"
+    });
+    return res.status(200).json({
+        message: "User logged out successfully",
+        success: true
+    });
+};
+
+const UpdateProfile = async (req, res) => {
     try {
-        // Extract authenticated user ID from JWT token to prevent authorization bypass
-        const token = req.cookies.token || (req.headers.authorization && req.headers.authorization.split(" ")[1]) || req.body.token;
-        if (!token) {
+        const userId = req.userId || (req.user ? req.user._id : null);
+        if (!userId) {
             return res.status(401).json({ message: "Unauthorized access", success: false });
         }
 
-        let authUserId;
-        try {
-            const decoded = jwt.verify(token, process.env.TOKEN_KEY);
-            authUserId = decoded.id;
-        } catch (e) {
-            return res.status(401).json({ message: "Invalid or expired token", success: false });
-        }
-
         const { username, email, phone, bio } = req.body;
-        const user = await User.findById(authUserId);
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User account not found", success: false });
         }
@@ -161,3 +179,9 @@ module.exports.UpdateProfile = async (req, res) => {
     }
 };
 
+module.exports = {
+    Signup,
+    Login,
+    Logout,
+    UpdateProfile
+};

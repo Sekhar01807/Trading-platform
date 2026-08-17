@@ -10,10 +10,7 @@ const Summary = ({ user }) => {
     const [totalAddedFunds, setTotalAddedFunds] = useState(0);
 
     const fetchHoldingsAndFunds = () => {
-        const token = localStorage.getItem("token");
-        const headers = { Authorization: `Bearer ${token}` };
-
-        axios.get(`${API_URL}/user/funds`, { withCredentials: true, headers })
+        axios.get(`${API_URL}/user/funds`, { withCredentials: true })
             .then((res) => {
                 if (res.data && res.data.totalAddedFunds !== undefined) {
                     setTotalAddedFunds(res.data.totalAddedFunds);
@@ -21,7 +18,7 @@ const Summary = ({ user }) => {
             })
             .catch(() => {});
 
-        axios.get(`${API_URL}/allHoldings`, { withCredentials: true, headers })
+        axios.get(`${API_URL}/allHoldings`, { withCredentials: true })
             .then((res) => {
                 setHoldings(res.data);
                 setLoading(false);
