@@ -9,28 +9,31 @@ const PaymentRecordSchema = new Schema({
     },
     razorpay_payment_id: { 
         type: String, 
-        required: true, 
-        unique: true,
-        trim: true
+        trim: true,
+        sparse: true,
+        index: true
     },
     razorpay_order_id: { 
         type: String, 
         required: true,
         trim: true,
+        unique: true,
         index: true
     },
     razorpay_signature: { 
         type: String, 
-        required: true 
+        default: null
     },
     amount: { 
         type: Number, 
         required: true,
-        min: 0.01
+        min: [0.01, "Amount must be at least ₹0.01"]
     },
     status: { 
         type: String, 
-        default: "SUCCESS" 
+        enum: ["PENDING", "SUCCESS", "FAILED"],
+        default: "PENDING",
+        index: true
     },
     createdAt: { 
         type: Date, 
@@ -38,6 +41,8 @@ const PaymentRecordSchema = new Schema({
     }
 });
 
-PaymentRecordSchema.index({ razorpay_payment_id: 1 }, { unique: true });
+PaymentRecordSchema.index({ razorpay_payment_id: 1 }, { unique: true, sparse: true });
+PaymentRecordSchema.index({ razorpay_order_id: 1 }, { unique: true });
+PaymentRecordSchema.index({ userId: 1, createdAt: -1 });
 
 module.exports = { PaymentRecordSchema };

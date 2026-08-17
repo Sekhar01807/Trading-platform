@@ -368,9 +368,10 @@ class OrderService {
             filter.mode = mode.toUpperCase();
         }
 
-        // 3. Symbol Search (Regex)
-        if (symbol && symbol.trim().length > 0) {
-            filter.name = { $regex: symbol.trim(), $options: "i" };
+        // 3. Symbol Search (Sanitized)
+        if (symbol && typeof symbol === "string" && symbol.trim().length > 0) {
+            const escaped = symbol.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            filter.name = { $regex: escaped, $options: "i" };
         }
 
         // 4. Date Range Filter

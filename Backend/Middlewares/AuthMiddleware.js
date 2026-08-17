@@ -12,9 +12,6 @@ const extractToken = (req) => {
             return parts[1];
         }
     }
-    if (req.body && req.body.token) {
-        return req.body.token;
-    }
     return null;
 };
 

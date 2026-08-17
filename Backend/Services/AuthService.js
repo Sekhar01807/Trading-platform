@@ -9,8 +9,8 @@ const isValidEmail = (email) => {
 };
 
 const isStrongPassword = (password) => {
-    // Minimum 8 characters, at least one letter and at least one number or special character
-    return typeof password === "string" && password.length >= 8 && /[a-zA-Z]/.test(password) && /[\d\W]/.test(password);
+    // Minimum 8 characters, max 128 chars, at least one letter and at least one number or special character
+    return typeof password === "string" && password.length >= 8 && password.length <= 128 && /[a-zA-Z]/.test(password) && /[\d\W]/.test(password);
 };
 
 class AuthService {
@@ -28,6 +28,10 @@ class AuthService {
 
         if (!password || typeof password !== "string" || password.length < 8) {
             throw { statusCode: 400, message: "Password must be at least 8 characters long" };
+        }
+
+        if (password.length > 128) {
+            throw { statusCode: 400, message: "Password must not exceed 128 characters" };
         }
 
         if (!isStrongPassword(password)) {
@@ -66,7 +70,7 @@ class AuthService {
     }
 
     /**
-     * Authenticates user with generic error response to prevent user enumeration.
+     * Authenticates user with 401 Unauthorized generic error response to prevent user enumeration.
      */
     static async login({ email, password }) {
         if (!email || !password || typeof email !== "string" || typeof password !== "string") {
@@ -76,16 +80,16 @@ class AuthService {
         const sanitizedEmail = email.trim().toLowerCase();
         const user = await User.findOne({ email: sanitizedEmail });
 
-        // Generic error message for both non-existent user and wrong password
+        // Return 401 Unauthorized with generic message for both non-existent user and wrong password
         if (!user || !user.password) {
             logger.warn("Failed login attempt (user not found)", { email: sanitizedEmail });
-            throw { statusCode: 400, message: "Incorrect email address or password" };
+            throw { statusCode: 401, message: "Incorrect email address or password" };
         }
 
         const auth = await bcrypt.compare(password, user.password);
         if (!auth) {
             logger.warn("Failed login attempt (incorrect password)", { email: sanitizedEmail, userId: user._id });
-            throw { statusCode: 400, message: "Incorrect email address or password" };
+            throw { statusCode: 401, message: "Incorrect email address or password" };
         }
 
         const token = createSecretToken(user._id);
@@ -123,7 +127,7 @@ class AuthService {
     }
 
     /**
-     * Updates user profile fields.
+     * Updates user profile fields with consistent length constraints.
      */
     static async updateProfile(userId, { username, email, phone, bio }) {
         const user = await User.findById(userId);
@@ -131,16 +135,31 @@ class AuthService {
             throw { statusCode: 404, message: "User account not found" };
         }
 
-        if (username && typeof username === "string" && username.trim().length >= 2) {
+        if (username !== undefined) {
+            if (typeof username !== "string" || username.trim().length < 2 || username.trim().length > 30) {
+                throw { statusCode: 400, message: "Username must be between 2 and 30 characters long" };
+            }
             user.username = username.trim();
         }
-        if (email && isValidEmail(email)) {
+
+        if (email !== undefined) {
+            if (!isValidEmail(email)) {
+                throw { statusCode: 400, message: "Please provide a valid email address" };
+            }
             user.email = email.trim().toLowerCase();
         }
-        if (phone !== undefined && typeof phone === "string") {
+
+        if (phone !== undefined) {
+            if (typeof phone !== "string" || phone.trim().length > 20) {
+                throw { statusCode: 400, message: "Phone number must not exceed 20 characters" };
+            }
             user.phone = phone.trim();
         }
-        if (bio !== undefined && typeof bio === "string") {
+
+        if (bio !== undefined) {
+            if (typeof bio !== "string" || bio.trim().length > 200) {
+                throw { statusCode: 400, message: "Bio must not exceed 200 characters" };
+            }
             user.bio = bio.trim();
         }
 

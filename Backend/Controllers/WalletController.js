@@ -57,8 +57,8 @@ const verifyRazorpayPayment = async (req, res, next) => {
 const getTransactionLedger = async (req, res, next) => {
     try {
         const userId = req.userId;
-        const transactions = await WalletService.getTransactionHistory(userId);
-        res.status(200).json({ status: true, transactions });
+        const result = await WalletService.getTransactionHistory(userId, req.query);
+        res.status(200).json(result);
     } catch (error) {
         next(error);
     }
