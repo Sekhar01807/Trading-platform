@@ -22,14 +22,18 @@ const getAllOrders = async (req, res, next) => {
 const placeOrder = async (req, res, next) => {
     try {
         const userId = req.userId;
-        const { name, qty, price, mode, productType, orderType } = req.body;
+        const { name, symbol, qty, quantity, price, requestedPrice, mode, side, productType, orderType } = req.body;
 
         const result = await OrderService.executeOrder({
             userId,
-            name,
-            qty,
-            price,
-            mode,
+            name: name || symbol,
+            symbol: symbol || name,
+            qty: qty || quantity,
+            quantity: quantity || qty,
+            price: price || requestedPrice,
+            requestedPrice: requestedPrice || price,
+            mode: mode || side,
+            side: side || mode,
             productType,
             orderType
         });

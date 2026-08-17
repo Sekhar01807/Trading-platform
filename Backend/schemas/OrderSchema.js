@@ -14,15 +14,32 @@ const OrderSchema = new Schema({
         uppercase: true,
         trim: true
     },
+    symbol: {
+        type: String,
+        uppercase: true,
+        trim: true
+    },
     qty: { 
         type: Number, 
         required: [true, "Order quantity is required"],
+        min: [1, "Order quantity must be at least 1"]
+    },
+    quantity: {
+        type: Number,
         min: [1, "Order quantity must be at least 1"]
     },
     price: { 
         type: Number, 
         required: [true, "Execution price is required"],
         min: [0.01, "Execution price must be greater than zero"]
+    },
+    requestedPrice: {
+        type: Number,
+        default: 0
+    },
+    executedPrice: {
+        type: Number,
+        default: 0
     },
     marketPrice: {
         type: Number,
@@ -32,6 +49,10 @@ const OrderSchema = new Schema({
         type: String, 
         enum: Object.values(ORDER_MODE),
         required: [true, "Order mode (BUY or SELL) is required"]
+    },
+    side: {
+        type: String,
+        enum: Object.values(ORDER_MODE)
     },
     productType: {
         type: String,
@@ -56,12 +77,9 @@ const OrderSchema = new Schema({
     totalCost: {
         type: Number,
         default: 0
-    },
-    createdAt: { 
-        type: Date, 
-        default: Date.now,
-        index: true
     }
+}, {
+    timestamps: true
 });
 
 // Compound indexes for performant query filtering and sorting

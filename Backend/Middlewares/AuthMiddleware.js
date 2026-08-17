@@ -1,5 +1,6 @@
 const User = require("../model/UserModel");
 const jwt = require("jsonwebtoken");
+const { getTokenSecret } = require("../util/SecretToken");
 
 const extractToken = (req) => {
     if (req.cookies && req.cookies.token) {
@@ -21,7 +22,7 @@ const getUserIdFromReq = (req) => {
     const token = extractToken(req);
     if (!token) return null;
     try {
-        const decoded = jwt.verify(token, process.env.TOKEN_KEY);
+        const decoded = jwt.verify(token, getTokenSecret());
         return decoded.id;
     } catch (err) {
         return null;
@@ -39,7 +40,7 @@ const authenticateUser = async (req, res, next) => {
     }
 
     try {
-        const decoded = jwt.verify(token, process.env.TOKEN_KEY);
+        const decoded = jwt.verify(token, getTokenSecret());
         const user = await User.findById(decoded.id);
 
         if (!user) {
@@ -68,7 +69,7 @@ const userVerification = async (req, res) => {
     }
 
     try {
-        const decoded = jwt.verify(token, process.env.TOKEN_KEY);
+        const decoded = jwt.verify(token, getTokenSecret());
         const user = await User.findById(decoded.id);
 
         if (!user) {

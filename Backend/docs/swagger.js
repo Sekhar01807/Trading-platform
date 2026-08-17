@@ -1,9 +1,9 @@
 const openApiSpec = {
     openapi: "3.0.3",
     info: {
-        title: "PulseTrade Trading Platform API",
+        title: "PulseTrade Paper-Trading API",
         version: "1.0.0",
-        description: "Production RESTful API & WebSocket engine for stock trading, portfolio management, order execution, and Razorpay sandbox payments.",
+        description: "RESTful API & WebSocket engine for simulated paper-trading, portfolio management, atomic order execution, and Razorpay sandbox payments.",
         contact: {
             name: "PulseTrade Engineering Team",
             url: "https://github.com/Sekhar01807/Trading-platform"

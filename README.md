@@ -1,10 +1,10 @@
-# 📈 PulseTrade — Enterprise Stock Trading Platform
+# 📈 PulseTrade — Full-Stack Paper-Trading Platform
 
-A modern full-stack stock trading terminal, portfolio management system, and paper-trading sandbox built with **Node.js, Express, React 19, WebSockets (Socket.io), MongoDB Atlas, Razorpay Gateway Sandbox, and Docker**.
+> **Full-stack paper-trading platform for simulated stock trading and portfolio management.**
 
 ---
 
-### 🛡️ Tech Stack & Build Badges
+### 🛡️ Tech Stack & Badges
 
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg?style=for-the-badge)](https://opensource.org/licenses/ISC)
 [![React 19](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
@@ -19,19 +19,101 @@ A modern full-stack stock trading terminal, portfolio management system, and pap
 [![GitHub Actions CI](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/features/actions)
 [![Jest & Supertest](https://img.shields.io/badge/Tests-Jest_%26_Supertest-C21325?style=for-the-badge&logo=jest&logoColor=white)](https://jestjs.io/)
 [![Swagger OpenAPI](https://img.shields.io/badge/OpenAPI_3.0-Swagger_UI-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)](https://swagger.io/)
-[![Vercel Deployment](https://img.shields.io/badge/Frontend_Deploy-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/)
-[![Render Deployment](https://img.shields.io/badge/Backend_Deploy-Render-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://render.com/)
 
 ---
 
 > [!NOTE]
-> **Product Disclaimer**: **PulseTrade** is an independent, open-source educational stock trading simulator and paper-trading portfolio management application. It is designed for portfolio demonstration, algorithmic testing, and learning. It has **no affiliation with Zerodha Broking Ltd.** or any SEBI-registered stock brokerage.
+> **Product Disclaimer & Scope**: **PulseTrade** is an educational paper-trading simulator and portfolio management application. It allows users to practice simulated stock trading and track virtual portfolios using market data feeds. It does **not** route live trades to real financial exchanges (such as NSE/BSE) and has no affiliation with Zerodha Broking Ltd. or any registered stock broker.
+
+---
+
+## 🏛️ System Architecture
+
+PulseTrade is structured with a clean, decoupled layered backend architecture:
+
+```
+                      React
+                        │
+                        ▼
+                Axios / Socket.IO
+                        │
+                        ▼
+                Express API Server
+                        │
+            ┌───────────┴───────────┐
+            │                       │
+       Auth Middleware        Validation
+            │                       │
+            └───────────┬───────────┘
+                        ▼
+                   Controllers
+                        │
+                        ▼
+                    Services
+                        │
+          ┌─────────────┼─────────────┐
+          │             │             │
+        Users         Orders       Portfolio
+          │             │             │
+          └─────────────┼─────────────┘
+                        ▼
+                    MongoDB
+                        │
+                        ▼
+                Transaction Layer
+```
+
+```mermaid
+flowchart TB
+    subgraph ClientLayer [1. Client Presentation Layer]
+        FE["React 19 Marketing & Landing Portal"]
+        DASH["React 19 Trading Terminal"]
+    end
+
+    subgraph SecurityLayer [2. Security & Middleware Layer]
+        SEC["Security Headers & CORS Allowlist"]
+        RL["Rate Limiters (Auth, Orders, Wallet)"]
+        LOG["Structured JSON Logger (X-Request-Id)"]
+        VAL["Centralized Declarative Validator"]
+        AUTH["JWT HttpOnly Cookie Auth Middleware"]
+    end
+
+    subgraph ServiceLayer [3. Business Services Layer]
+        AUTH_SVC["AuthService: Hashing, Session Management"]
+        ORDER_SVC["OrderService: Concurrency Safe BUY/SELL & Weighted Cost Basis"]
+        HOLDING_SVC["HoldingService: Holdings, Positions & Demo Seeding"]
+        WALLET_SVC["WalletService: Ledger Auditing & Razorpay Verification"]
+        TICKER_SVC["MarketTickerService: Live Market Data Streaming"]
+    end
+
+    subgraph DataLayer [4. Storage & Persistence Layer]
+        MONGO[("MongoDB Atlas")]
+        SOCKET[["Socket.IO Engine"]]
+        YAHOO["Yahoo Finance Market Data Feed"]
+        RZP["Razorpay Sandbox Gateway"]
+    end
+
+    FE -->|REST API Calls| SEC
+    DASH -->|Axios Client Interceptors| SEC
+    DASH <-->|WebSocket Stream| SOCKET
+
+    SEC --> RL --> LOG --> VAL --> AUTH
+    AUTH --> AUTH_SVC
+    AUTH --> ORDER_SVC
+    AUTH --> HOLDING_SVC
+    AUTH --> WALLET_SVC
+
+    ORDER_SVC -->|Atomic Operations & Transactions| MONGO
+    WALLET_SVC -->|Financial Audit Ledger| MONGO
+    WALLET_SVC -->|HMAC-SHA256 Verification| RZP
+    HOLDING_SVC -->|Holdings & Cost Basis| MONGO
+    TICKER_SVC -->|Market Data Polling| YAHOO
+    TICKER_SVC -->|Broadcast Price Ticks| SOCKET
+```
 
 ---
 
 ## 📸 Product Walkthrough & Screenshots
-
-*(Screenshots can be placed in this section to demonstrate user workflows)*
 
 | Trading Terminal & Holdings Analytics | Live Stock Watchlist & Market Depth |
 |:---:|:---:|
@@ -47,14 +129,14 @@ A modern full-stack stock trading terminal, portfolio management system, and pap
 
 ---
 
-## ⚡ Quick Demo & Sandbox Credentials
+## ⚡ Quick Demo & Test Credentials
 
-Experience PulseTrade instantly with pre-configured sandbox credentials or one-click demo data generation:
+Experience PulseTrade with pre-configured sandbox credentials or instant demo data seeding:
 
-### Option A: One-Click Demo Seeding (Fastest)
+### Option A: One-Click Demo Seeding
 1. Register or Log in to the [Trading Terminal](http://localhost:5173).
 2. Navigate to **Holdings** and click **"Load Demo Portfolio"**.
-3. Instantly loads a **₹50,000 cash balance** and **12 active NSE equity holdings** with real-time price tickers.
+3. Instantly loads a **₹50,000 simulated balance** and **12 active NSE equity holdings** with real-time price tickers.
 
 ### Option B: Test Credentials
 | Role | Email | Password | Initial Balance |
@@ -64,63 +146,46 @@ Experience PulseTrade instantly with pre-configured sandbox credentials or one-c
 ### Option C: Simulated Razorpay Sandbox Deposit
 1. Go to the **Funds** tab and click **"+ Add Funds"**.
 2. Enter any amount (e.g. ₹10,000).
-3. In the Razorpay Checkout popup, select **Netbanking (SBI / HDFC)** or **UPI** to instantly simulate verified deposits without real money.
+3. In the Razorpay Checkout popup, select **Netbanking (SBI / HDFC)** or **UPI** to simulate verified deposits without real money.
 
 ---
 
-## 🏛️ System Architecture
+## 🔑 Core Engineering & Business Logic Gaps Addressed
 
-PulseTrade is architected as a modular 4-tier decoupled trading system:
+### 1. Server-Enforced Order Validation (GAP 1)
+- **BUY Validation**: The backend independently validates that `available balance >= (qty * price)`. If insufficient, the order is rejected with status `REJECTED`, logging a clear failure reason without touching funds or holdings.
+- **SELL Validation**: The backend validates that `shares owned >= requested quantity`. If a user attempts to sell shares they do not own, or more shares than they have, the order is rejected immediately.
+- Never trust frontend calculations for balances or quantities.
 
-```mermaid
-flowchart TB
-    subgraph ClientLayer [1. Client Presentation Layer]
-        FE[React 19 Marketing & Landing Portal\nDeployed on Vercel CDN]
-        DASH[React 19 Trading Terminal\nDeployed on Vercel CDN]
-    end
+### 2. Race Conditions & Atomic Concurrency Safety (GAP 2)
+- Prevents double-spending and overselling when concurrent requests arrive simultaneously (e.g. two simultaneous ₹800 BUY orders with only a ₹1,000 balance).
+- Employs atomic conditional updates (`{ _id: userId, funds: { $gte: totalCost } }` and `{ userId, name, qty: { $gte: qty } }`) with automatic rollback compensation on failure.
 
-    subgraph GatewayLayer [2. API Gateway & Middleware Security Layer]
-        CORS[Strict CORS Allowlist Enforcement]
-        SEC[Security Headers: nosniff, DENY, HSTS]
-        RL[Layered Sliding-Window Rate Limiters\nGlobal, Auth, Trading, Wallet]
-        LOG[Structured JSON Logger with X-Request-Id]
-        VAL[Declarative Schema Request Validator]
-        AUTH[JWT HttpOnly Cookie Auth Middleware]
-    end
+### 3. Realistic Order Model & Pricing Separation (GAP 3 & 4)
+- **Order Model**: Includes `orderId`, `userId`, `symbol` / `name`, `side` / `mode` (`BUY` / `SELL`), `quantity` / `qty`, `requestedPrice`, `executedPrice`, `marketPrice`, `status` (`PENDING`, `EXECUTED`, `FILLED`, `REJECTED`, `CANCELLED`), `failureReason`, `totalCost`, and timestamps.
+- **Price Separation**: Distinguishes requested market price (`requestedPrice` / `marketPrice`) from actual simulated fill execution price (`executedPrice`).
 
-    subgraph ServiceLayer [3. Business Services & REST Controllers]
-        API_V1["API Version 1 Router (/api/v1)"]
-        SWAGGER["OpenAPI 3.0 Swagger UI (/api-docs)"]
-        HEALTH["System Diagnostics (/health)"]
-        ORDER_SVC["OrderService: Concurrency Safe BUY/SELL & Weighted Cost Basis"]
-        WALLET_SVC["WalletService: Idempotent Ledger & Razorpay Verification"]
-        TICKER_SVC["MarketTickerService: Live Quote Streaming & Socket Rooms"]
-    end
+### 4. Layered Security & Centralized Validation (GAP 5 & 6)
+- **Zero-Token Exposure**: Strict `HttpOnly: true` cookies with zero JWT tokens exposed in JSON payloads.
+- **Brute-Force Rate Limiting**: Dedicated auth rate limiter (10 attempts / 15 mins) plus global and trading rate limiters.
+- **Centralized Validation Middleware**: Validates inputs (emails, password strength, positive integers for quantities, valid order modes) before reaching controllers.
+- **Generic Auth Errors**: Both unknown users and bad passwords return `"Incorrect email address or password"` to prevent user enumeration.
 
-    subgraph DataLayer [4. Storage, WebSockets & External APIs]
-        MONGO[(MongoDB Atlas Managed Database)]
-        SOCKET[[Socket.IO Authenticated Server]]
-        YAHOO[Yahoo Finance NSE API]
-        RZP[Razorpay Sandbox Gateway]
-    end
+### 5. Clean Architectural Separation (GAP 7)
+- Strict separation of concerns across every domain:
+  `Route -> Middleware -> Controller -> Service -> Model`
+- Controllers handle HTTP transport, while `AuthService`, `OrderService`, `HoldingService`, and `WalletService` encapsulate business logic.
 
-    FE -->|REST API Calls| CORS
-    DASH -->|Centralized Axios Client & Interceptors| CORS
-    DASH <-->|Authenticated WebSocket Feed| SOCKET
+### 6. Strict User Isolation & Access Control (GAP 8 & 9)
+- All authenticated endpoints (`/allOrders`, `/allHoldings`, `/allPositions`, `/user/funds`, `/user/transactions`) are strictly scoped to the authenticated `req.userId`.
+- Rigorously verified through integration tests ensuring User A can never read or mutate User B's portfolio or order records.
 
-    CORS --> SEC --> RL --> LOG --> VAL --> AUTH --> API_V1
-    API_V1 --> ORDER_SVC
-    API_V1 --> WALLET_SVC
-    API_V1 --> HEALTH
-    API_V1 --> SWAGGER
+### 7. Transparent Market Data Presentation (GAP 10)
+- Accurately presented as a paper-trading platform that simulates trading using market data polled from Yahoo Finance, supplemented with synthetic micro-ticks outside market hours.
 
-    ORDER_SVC -->|Atomic Operations & Compound Indexes| MONGO
-    WALLET_SVC -->|Financial Audit Ledger| MONGO
-    WALLET_SVC -->|HMAC-SHA256 Cryptographic Verification| RZP
-    TICKER_SVC -->|Real-Time Polling| YAHOO
-    TICKER_SVC -->|Broadcast Price Ticks| SOCKET
-    TICKER_SVC -->|Sync Live LTP| MONGO
-```
+### 8. Standardized Error Handling & Observability (GAP 11 & 12)
+- Structured error middleware mapping status codes (400, 401, 403, 404, 409, 429, 500) without exposing stack traces in production.
+- Structured JSON logging with correlation IDs (`X-Request-Id`) and response latency metrics.
 
 ---
 
@@ -148,7 +213,7 @@ erDiagram
     HOLDING {
         ObjectId _id PK
         ObjectId userId FK "Compound Unique Index (userId + name)"
-        string name "Stock Symbol (e.g. INFY, TCS)"
+        string name "Stock Symbol"
         number qty "Quantity Owned"
         number avg "Weighted Average Purchase Cost Basis"
         number price "Live Market Price (LTP)"
@@ -161,7 +226,7 @@ erDiagram
     POSITION {
         ObjectId _id PK
         ObjectId userId FK "Indexed"
-        string product "CNC (Delivery) or MIS (Intraday)"
+        string product "CNC or MIS"
         string name "Stock Symbol"
         number qty "Position Quantity"
         number avg "Cost Basis"
@@ -175,15 +240,20 @@ erDiagram
         ObjectId _id PK
         ObjectId userId FK "Compound Indexes (userId + createdAt, userId + status)"
         string name "Stock Symbol"
-        number qty "Executed Quantity"
+        string symbol "Symbol Alias"
+        number qty "Order Quantity"
+        number quantity "Quantity Alias"
         number price "Execution Fill Price"
-        number marketPrice "Market LTP at Execution"
+        number requestedPrice "Requested / Limit Price"
+        number executedPrice "Simulated Fill Price"
+        number marketPrice "Market LTP"
         string mode "BUY or SELL"
+        string side "BUY or SELL"
         string productType "CNC or MIS"
         string orderType "MARKET or LIMIT"
-        string status "EXECUTED, REJECTED, PENDING, CANCELLED"
+        string status "EXECUTED, FILLED, REJECTED, PENDING, CANCELLED"
         string failureReason "Error details if rejected"
-        number totalCost "Total INR Value"
+        number totalCost "Total Cost Value"
         date createdAt "Indexed"
     }
 
@@ -214,54 +284,7 @@ erDiagram
 
 ---
 
-## 🚀 Key Features
-
-- 💹 **Real-Time Stock Market Engine**:
-  - Live streaming NSE stock quotes via authenticated WebSockets (`socket.io`).
-  - Automatic LTP synchronization across MongoDB database models.
-  - Private user notification channels (`user_${userId}`) for instant trade execution alerts.
-- 💼 **Concurrency-Protected Order Execution**:
-  - Atomic balance checking & deduction (`{ funds: { $gte: totalCost } }`) eliminating double-spending race conditions.
-  - Atomic share deduction (`{ qty: { $gte: qty } }`) preventing overselling.
-  - Dynamic weighted average purchase cost basis calculations (`avgCostBasis` vs `marketPrice` vs `executionPrice`).
-  - Full order lifecycle state machine (`PENDING`, `EXECUTED`, `REJECTED`, `CANCELLED`).
-- 📑 **Orders Pagination, Multi-Field Filtering & Search**:
-  - Filter by `status` (EXECUTED / REJECTED), `mode` (BUY / SELL), and stock `symbol` search.
-  - Multi-column sorting (`createdAt`, `price`, `qty`, `totalCost`).
-  - Structured pagination metadata (`totalOrders`, `totalPages`, `hasNextPage`, `hasPrevPage`).
-- 🔒 **Enterprise Authentication & Session Hardening**:
-  - Strict **`HttpOnly: true` cookies** with **zero JWT token exposure in JSON responses** (closing client-side XSS vectors).
-  - Strict **CORS allowlist enforcement** on Express and Socket.IO.
-  - Layered sliding-window rate limiters across global, auth, order placement, and wallet endpoints.
-  - Security headers (`nosniff`, `DENY`, `X-XSS-Protection`, `Strict-Transport-Security`).
-- 💳 **Razorpay Sandbox Gateway with Cryptographic Idempotency**:
-  - Server-side cryptographic **HMAC-SHA256 signature verification**.
-  - Unique payment ID tracking (`PaymentRecordModel`) preventing double-crediting from replayed callbacks.
-  - Comprehensive wallet transaction ledger (`TransactionModel`) recording before/after balances.
-- 🩺 **Observability & Interactive Documentation**:
-  - JSON structured logging with correlation `X-Request-Id` and response latency tracking.
-  - Diagnostic health endpoint (`/health` & `/api/v1/health`) reporting DB ping latency, memory, uptime, and active socket connections.
-  - Interactive **OpenAPI 3.0 Swagger UI** documentation at `/api-docs`.
-- 🎨 **Modern UX States & Mobile Responsive Design**:
-  - Centralized Axios API client with interceptors and domain services.
-  - Shimmering table skeletons, actionable empty states with CTAs, and error retry cards.
-  - Mobile drawer navigation, responsive table scrolling, and touch-optimized trading modals.
-
----
-
-## 🌐 Multi-Cloud Deployment Architecture
-
-| Tier | Component | Hosting Provider | Deployment Strategy |
-|---|---|---|---|
-| **Frontend** | Marketing & Landing SPA | **Vercel** | Global Edge CDN, Automated Git Deployments, SSL |
-| **Dashboard** | Trading Terminal SPA | **Vercel** | Single Page Application, Axios Client Interceptors |
-| **Backend API** | REST API & WebSocket Server | **Render / Docker** | Node.js Runtime Container, Auto-Restart, Persistent WebSockets |
-| **Database** | Primary NoSQL Database | **MongoDB Atlas** | Managed M0/M10 Cluster, Automatic Failover, Connection Pooling |
-| **Payment Gateway** | Wallet Deposits Sandbox | **Razorpay** | Standard Checkout SDK, Server-Side HMAC-SHA256 Verification |
-
----
-
-## 📡 API Documentation (`/api/v1`)
+## 📡 API Reference (`/api/v1`)
 
 Access the interactive **Swagger UI** documentation at **[`http://localhost:3000/api-docs`](http://localhost:3000/api-docs)**.
 
@@ -269,8 +292,8 @@ Access the interactive **Swagger UI** documentation at **[`http://localhost:3000
 |:---:|---|---|---|:---:|:---:|
 | `GET` | `/api/v1/health` | `/health` | System diagnostics, uptime & DB ping latency | ❌ | ❌ |
 | `GET` | `/api-docs` | `/api-docs` | Interactive OpenAPI 3.0 Swagger UI | ❌ | ❌ |
-| `POST` | `/api/v1/auth/signup` | `/signup` | User account registration (sets HttpOnly cookie) | ❌ | 🔒 (20 / 15m) |
-| `POST` | `/api/v1/auth/login` | `/login` | User login & HttpOnly session cookie issuance | ❌ | 🔒 (20 / 15m) |
+| `POST` | `/api/v1/auth/signup` | `/signup` | User account registration (sets HttpOnly cookie) | ❌ | 🔒 (10 / 15m) |
+| `POST` | `/api/v1/auth/login` | `/login` | User login & HttpOnly session cookie issuance | ❌ | 🔒 (10 / 15m) |
 | `POST` | `/api/v1/auth/logout` | `/logout` | User logout & cookie clearance | ❌ | ❌ |
 | `POST` | `/api/v1/auth/` | `/` | User session verification | 🔑 | ❌ |
 | `GET` | `/api/v1/orders/allOrders` | `/allOrders` | Retrieve user orders with pagination, filtering & sorting | 🔑 | ❌ |
@@ -296,28 +319,19 @@ cd Backend
 npm test
 ```
 
-### Integration Test Report Breakdown
+### Integration Test Breakdown
 
-| Test Suite | Test Cases | Status |
+| Test Category | Critical Business Logic Verified | Status |
 |---|---|:---:|
-| **API Health, Swagger & Observability** | Diagnostics (`/health`, `/api/v1/health`), OpenAPI JSON, Swagger UI, `X-Request-Id` | ✅ Passed |
-| **Authentication & Zero-Token Security** | Validation, Bcrypt hashing, HttpOnly cookie, Zero JWT in JSON body, Session check | ✅ Passed |
-| **Wallet Management & Idempotency** | Atomic ADD/WITHDRAW, Overdrawing prevention, HMAC-SHA256 verification, Replay attack prevention | ✅ Passed |
-| **Trading Engine & Concurrency** | Atomic balance deduction, Cost basis math ($1000 + $1200 -> $1100 avg), Concurrency race protection | ✅ Passed |
-| **Orders Pagination & Filtering** | Pagination metadata (`page`, `limit`, `totalPages`), Mode filter (`BUY`/`SELL`), Symbol search, Sorting | ✅ Passed |
-| **Portfolio Lifecycle** | Demo seeding (12 stocks + ₹50,000), Portfolio clean reset (₹0.00 balance) | ✅ Passed |
-| **Legacy Backward Compatibility** | Legacy root routes (`/allHoldings`, `/user/funds`, `/newOrders`) | ✅ Passed |
-
----
-
-## ⚠️ Known Limitations & Roadmap
-
-While PulseTrade provides a complete simulated trading environment, the following design boundaries are intentional:
-
-1. **Simulated Paper Trading**: Orders execute in a paper-trading sandbox. No live trades are routed to real exchanges (NSE/BSE), and no real funds are debited from bank accounts.
-2. **Market Hours Data Feed**: Outside of official market hours, Yahoo Finance market prices remain static; PulseTrade automatically generates synthetic micro-ticks to enable realistic 24/7 testing.
-3. **Razorpay Sandbox Environment**: Payment processing runs in test mode. International card payments are disabled by Razorpay test accounts; use **Netbanking (SBI/HDFC)** or **UPI** in the checkout modal.
-4. **Intraday Square-Off**: Intraday (MIS) positions simulate daily rollover without automated 3:20 PM broker square-off triggers.
+| **Health & Observability** | Health endpoint (`/health`), OpenAPI JSON, Swagger UI, `X-Request-Id` correlation tracking | ✅ Passed |
+| **Authentication & Security** | Signup validation, duplicate email rejection, HttpOnly cookies, zero-token JSON, generic login errors | ✅ Passed |
+| **BUY Order Engine** | Atomic balance deduction, insufficient funds rejection (`status: REJECTED`), holding creation, weighted cost basis math | ✅ Passed |
+| **SELL Order Engine** | Atomic holding deduction, overselling rejection, selling unowned stock rejection, proceeds crediting, holding removal upon 0 qty | ✅ Passed |
+| **Portfolio Math** | Multi-purchase weighted average price (`(5*1000 + 5*1200)/10 = 1100 avg`), partial sell cost basis preservation | ✅ Passed |
+| **User Isolation** | User A cannot see User B's orders, holdings, positions, funds, or wallet transactions | ✅ Passed |
+| **Pagination & Filtering** | Pagination metadata (`page`, `limit`, `totalPages`), mode filter (`BUY`/`SELL`), symbol search, price/date sorting | ✅ Passed |
+| **Wallet & Idempotency** | Atomic ADD/WITHDRAW, overdrawing prevention, HMAC-SHA256 verification, replay attack prevention | ✅ Passed |
+| **Backward Compatibility** | Legacy root routes (`/allHoldings`, `/user/funds`, `/allOrders`, `/newOrders`) | ✅ Passed |
 
 ---
 

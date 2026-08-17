@@ -41,10 +41,10 @@ const globalRateLimiter = createSlidingWindowLimiter({
     message: "Too many overall requests to PulseTrade API. Please slow down."
 });
 
-// Authentication Limiter: 20 login/signup attempts / 15 mins per IP
+// Authentication Limiter: 10 login/signup attempts / 15 mins per IP (Brute-force protection)
 const authRateLimiter = createSlidingWindowLimiter({
     windowMs: 15 * 60 * 1000,
-    maxRequests: 20,
+    maxRequests: 10,
     message: "Too many login/signup attempts. Please try again after 15 minutes."
 });
 

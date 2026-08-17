@@ -40,7 +40,7 @@ app.get("/api/v1/health", getHealthStatus);
 app.get("/", (req, res) => {
     res.status(200).json({
         status: true,
-        service: "PulseTrade Enterprise Trading API",
+        service: "PulseTrade Paper-Trading API",
         version: "1.0.0",
         documentation: "/api-docs",
         health: "/health",

@@ -19,6 +19,9 @@ const SCHEMAS = {
         if (!password || typeof password !== "string" || password.length < 8) {
             return "Password must be at least 8 characters long";
         }
+        if (!/[a-zA-Z]/.test(password) || !/[\d\W]/.test(password)) {
+            return "Password must contain both letters and numbers or special characters";
+        }
         return null;
     },
 
@@ -31,11 +34,12 @@ const SCHEMAS = {
     },
 
     placeOrder: (body) => {
-        const { name, qty, price, mode } = body || {};
-        const numQty = Number(qty);
-        const numPrice = Number(price);
+        const { name, symbol, qty, quantity, price, requestedPrice, mode, side } = body || {};
+        const stockSymbol = name || symbol;
+        const numQty = Number(qty || quantity);
+        const numPrice = Number(price || requestedPrice);
 
-        if (!name || typeof name !== "string" || name.trim().length === 0) {
+        if (!stockSymbol || typeof stockSymbol !== "string" || stockSymbol.trim().length === 0) {
             return "Valid stock symbol is required";
         }
         if (isNaN(numQty) || numQty <= 0 || !Number.isInteger(numQty)) {
@@ -44,8 +48,8 @@ const SCHEMAS = {
         if (isNaN(numPrice) || numPrice <= 0) {
             return "Price must be a positive number";
         }
-        const upperMode = typeof mode === "string" ? mode.toUpperCase() : "";
-        if (upperMode !== "BUY" && upperMode !== "SELL") {
+        const orderMode = (mode || side || "").toString().toUpperCase();
+        if (orderMode !== "BUY" && orderMode !== "SELL") {
             return "Order mode must be either BUY or SELL";
         }
         return null;
