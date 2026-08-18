@@ -10,15 +10,12 @@ const PaymentRecordSchema = new Schema({
     razorpay_payment_id: { 
         type: String, 
         trim: true,
-        sparse: true,
-        index: true
+        sparse: true
     },
     razorpay_order_id: { 
         type: String, 
         required: true,
-        trim: true,
-        unique: true,
-        index: true
+        trim: true
     },
     razorpay_signature: { 
         type: String, 

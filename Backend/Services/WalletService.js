@@ -52,7 +52,7 @@ class WalletService {
                 const updatedUser = await User.findByIdAndUpdate(
                     userId,
                     { $inc: { funds: numAmt } },
-                    { new: true, session }
+                    { returnDocument: "after", session }
                 );
 
                 if (!updatedUser) {
@@ -103,7 +103,7 @@ class WalletService {
                 const updatedUser = await User.findOneAndUpdate(
                     { _id: userId, funds: { $gte: numAmt } },
                     { $inc: { funds: -numAmt } },
-                    { new: true, session }
+                    { returnDocument: "after", session }
                 );
 
                 if (!updatedUser) {
@@ -169,7 +169,7 @@ class WalletService {
         let orderId = "";
         let amountInPaise = Math.round(numAmt * 100);
 
-        if (razorpayKeyId && razorpayKeySecret) {
+        if (razorpayKeyId && razorpayKeySecret && !razorpayKeyId.startsWith("rzp_test_simulated") && process.env.NODE_ENV !== "test") {
             const Razorpay = require("razorpay");
             const razorpay = new Razorpay({ key_id: razorpayKeyId, key_secret: razorpayKeySecret });
 
@@ -320,7 +320,7 @@ class WalletService {
                 const updatedUser = await User.findByIdAndUpdate(
                     userId,
                     { $inc: { funds: numAmt } },
-                    { new: true, session }
+                    { returnDocument: "after", session }
                 );
 
                 if (!updatedUser) {

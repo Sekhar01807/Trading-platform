@@ -247,7 +247,7 @@ class OrderService {
             const updatedUser = await User.findOneAndUpdate(
                 { _id: userId, funds: { $gte: totalOrderCost } },
                 { $inc: { funds: -totalOrderCost } },
-                { new: true, session }
+                { returnDocument: "after", session }
             );
 
             if (!updatedUser) {
@@ -407,7 +407,7 @@ class OrderService {
             const updatedHolding = await HoldingModel.findOneAndUpdate(
                 { userId, name, qty: { $gte: qty } },
                 { $inc: { qty: -qty } },
-                { new: true, session }
+                { returnDocument: "after", session }
             );
 
             if (!updatedHolding) {
@@ -426,7 +426,7 @@ class OrderService {
             const updatedUser = await User.findByIdAndUpdate(
                 userId,
                 { $inc: { funds: totalSaleProceeds } },
-                { new: true, session }
+                { returnDocument: "after", session }
             );
 
             if (!updatedUser) {

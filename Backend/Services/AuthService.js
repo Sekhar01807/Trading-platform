@@ -114,7 +114,7 @@ class AuthService {
         const user = await User.findByIdAndUpdate(
             userId,
             { $inc: { tokenVersion: 1 } },
-            { new: true }
+            { returnDocument: "after" }
         );
 
         if (!user) {
