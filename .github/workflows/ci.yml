@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  # 1. Backend Integration Tests & Linting
+  # 1. Backend Integration Tests & Database Integration
   backend-test:
     name: Backend Tests & Database Integration
     runs-on: ubuntu-latest
@@ -23,6 +23,13 @@ jobs:
           cache: 'npm'
           cache-dependency-path: 'Backend/package-lock.json'
 
+      - name: Start Ephemeral MongoDB Replica Set (For Multi-Document ACID Transactions)
+        run: |
+          docker run -d --name mongodb -p 27017:27017 mongo:6.0 --replSet rs0 --bind_ip_all
+          sleep 4
+          docker exec mongodb mongosh --eval "rs.initiate({_id: 'rs0', members: [{_id: 0, host: '127.0.0.1:27017'}]})"
+          sleep 2
+
       - name: Install Backend dependencies
         run: |
           cd Backend
@@ -30,10 +37,10 @@ jobs:
 
       - name: Run Backend Integration Test Suite
         env:
-          ATLASDB_URL: ${{ secrets.ATLASDB_URL }}
-          TOKEN_KEY: ${{ secrets.TOKEN_KEY }}
-          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
-          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
+          ATLASDB_URL: ${{ secrets.ATLASDB_URL || 'mongodb://127.0.0.1:27017/pulsetrade_test?replicaSet=rs0&directConnection=true' }}
+          TOKEN_KEY: ${{ secrets.TOKEN_KEY || 'PulseTrade_CI_Test_JWT_Secret_Key_2026!@#' }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID || 'rzp_test_simulated_key' }}
+          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET || 'test_secret_for_mocking' }}
           NODE_ENV: test
         run: |
           cd Backend

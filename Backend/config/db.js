@@ -24,7 +24,7 @@ const setupMongooseEvents = () => {
     });
 };
 
-const connectDB = async (url = process.env.ATLASDB_URL) => {
+const connectDB = async (url) => {
     if (mongoose.connection.readyState === 1) {
         return mongoose.connection;
     }
@@ -33,11 +33,22 @@ const connectDB = async (url = process.env.ATLASDB_URL) => {
         return mongoose.connection;
     }
 
+    const dbUri = url || process.env.ATLASDB_URL || (process.env.NODE_ENV === "test" ? "mongodb://127.0.0.1:27017/pulsetrade_test?replicaSet=rs0&directConnection=true" : null);
+
+    if (!dbUri) {
+        const errMsg = "MongoDB connection string (ATLASDB_URL) is not configured.";
+        logger.error("[MongoDB] " + errMsg);
+        if (process.env.NODE_ENV !== "test") {
+            process.exit(1);
+        }
+        throw new Error(errMsg);
+    }
+
     try {
         isConnecting = true;
         setupMongooseEvents();
 
-        const conn = await mongoose.connect(url, {
+        const conn = await mongoose.connect(dbUri, {
             dbName: process.env.DB_NAME || "pulsetrade",
             serverSelectionTimeoutMS: 10000,
             socketTimeoutMS: 45000,
