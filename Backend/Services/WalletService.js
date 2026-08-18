@@ -5,12 +5,13 @@ const { HoldingModel } = require("../model/HoldingModel");
 const { TransactionModel } = require("../model/TransactionModel");
 const { PaymentRecordModel } = require("../model/PaymentRecordModel");
 const { TRANSACTION_TYPE, TRANSACTION_STATUS } = require("../config/constants");
+const { runInTransaction } = require("../util/transactionHelper");
 const logger = require("../util/logger");
 
 class WalletService {
     /**
      * Retrieves the financial funds & cash margin breakdown for a user.
-     * Semantics: User.funds represents current available cash balance.
+     * User.funds represents current available cash balance.
      */
     static async getFundsSummary(userId) {
         const user = await User.findById(userId);
@@ -36,46 +37,62 @@ class WalletService {
 
     /**
      * Adds or withdraws wallet balance transactionally with ledger tracking.
+     * Uses atomic conditional updates and MongoDB session transactions.
      */
     static async updateFunds(userId, amount, action) {
-        const numAmt = parseFloat(amount);
+        const numAmt = Number(parseFloat(amount).toFixed(2));
         if (isNaN(numAmt) || numAmt <= 0) {
-            throw { statusCode: 400, message: "Invalid amount" };
+            throw { statusCode: 400, message: "Invalid amount. Must be greater than zero." };
         }
 
-        const userBefore = await User.findById(userId);
-        if (!userBefore) {
-            throw { statusCode: 404, message: "User not found" };
-        }
+        const cleanAction = (action || "").trim().toUpperCase();
 
-        const balanceBefore = userBefore.funds || 0;
+        if (cleanAction === "ADD") {
+            return await runInTransaction(async (session) => {
+                const sessionOpt = session ? { session } : {};
 
-        if (action === "ADD") {
-            const updatedUser = await User.findByIdAndUpdate(
-                userId,
-                { $inc: { funds: numAmt } },
-                { new: true }
-            );
+                const userBefore = await User.findById(userId, null, sessionOpt);
+                if (!userBefore) {
+                    throw { statusCode: 404, message: "User not found" };
+                }
+                const balanceBefore = Number((userBefore.funds || 0).toFixed(2));
 
-            await TransactionModel.create({
-                userId,
-                type: TRANSACTION_TYPE.DEPOSIT,
-                amount: numAmt,
-                balanceBefore,
-                balanceAfter: updatedUser.funds,
-                status: TRANSACTION_STATUS.SUCCESS,
-                description: `Manual deposit of ₹${numAmt.toFixed(2)}`
+                const updatedUser = await User.findByIdAndUpdate(
+                    userId,
+                    { $inc: { funds: numAmt } },
+                    { new: true, ...sessionOpt }
+                );
+                const balanceAfter = Number(updatedUser.funds.toFixed(2));
+
+                await TransactionModel.create(
+                    [{
+                        userId,
+                        type: TRANSACTION_TYPE.DEPOSIT,
+                        amount: numAmt,
+                        balanceBefore,
+                        balanceAfter,
+                        status: TRANSACTION_STATUS.SUCCESS,
+                        description: `Manual deposit of ₹${numAmt.toFixed(2)}`
+                    }],
+                    sessionOpt
+                );
+
+                logger.info("Wallet deposit completed via transaction", { userId, amount: numAmt, balanceAfter });
+
+                return {
+                    status: true,
+                    totalAddedFunds: balanceAfter,
+                    message: `Successfully deposited ₹${numAmt.toFixed(2)}`
+                };
             });
+        } else if (cleanAction === "WITHDRAW") {
+            // Check available balance before starting
+            const userBefore = await User.findById(userId);
+            if (!userBefore) {
+                throw { statusCode: 404, message: "User not found" };
+            }
+            const balanceBefore = Number((userBefore.funds || 0).toFixed(2));
 
-            logger.info("Wallet deposit completed", { userId, amount: numAmt, balanceAfter: updatedUser.funds });
-
-            return {
-                status: true,
-                totalAddedFunds: updatedUser.funds,
-                message: `Successfully deposited ₹${numAmt.toFixed(2)}`
-            };
-        } else if (action === "WITHDRAW") {
-            // Check available cash balance
             if (numAmt > balanceBefore) {
                 throw {
                     statusCode: 400,
@@ -83,37 +100,46 @@ class WalletService {
                 };
             }
 
-            // Atomic balance check and deduction
-            const updatedUser = await User.findOneAndUpdate(
-                { _id: userId, funds: { $gte: numAmt } },
-                { $inc: { funds: -numAmt } },
-                { new: true }
-            );
+            return await runInTransaction(async (session) => {
+                const sessionOpt = session ? { session } : {};
 
-            if (!updatedUser) {
-                throw {
-                    statusCode: 400,
-                    message: "Withdrawal failed due to insufficient funds."
+                // Concurrency-safe atomic deduction: guarantees funds >= numAmt at write time
+                const updatedUser = await User.findOneAndUpdate(
+                    { _id: userId, funds: { $gte: numAmt } },
+                    { $inc: { funds: -numAmt } },
+                    { new: true, ...sessionOpt }
+                );
+
+                if (!updatedUser) {
+                    throw {
+                        statusCode: 400,
+                        message: "Withdrawal failed due to insufficient funds."
+                    };
+                }
+
+                const balanceAfter = Number(updatedUser.funds.toFixed(2));
+
+                await TransactionModel.create(
+                    [{
+                        userId,
+                        type: TRANSACTION_TYPE.WITHDRAWAL,
+                        amount: numAmt,
+                        balanceBefore,
+                        balanceAfter,
+                        status: TRANSACTION_STATUS.SUCCESS,
+                        description: `Withdrawal of ₹${numAmt.toFixed(2)}`
+                    }],
+                    sessionOpt
+                );
+
+                logger.info("Wallet withdrawal completed via transaction", { userId, amount: numAmt, balanceAfter });
+
+                return {
+                    status: true,
+                    totalAddedFunds: balanceAfter,
+                    message: `Successfully withdrew ₹${numAmt.toFixed(2)}`
                 };
-            }
-
-            await TransactionModel.create({
-                userId,
-                type: TRANSACTION_TYPE.WITHDRAWAL,
-                amount: numAmt,
-                balanceBefore,
-                balanceAfter: updatedUser.funds,
-                status: TRANSACTION_STATUS.SUCCESS,
-                description: `Withdrawal of ₹${numAmt.toFixed(2)}`
             });
-
-            logger.info("Wallet withdrawal completed", { userId, amount: numAmt, balanceAfter: updatedUser.funds });
-
-            return {
-                status: true,
-                totalAddedFunds: updatedUser.funds,
-                message: `Successfully withdrew ₹${numAmt.toFixed(2)}`
-            };
         } else {
             throw { statusCode: 400, message: "Invalid action. Must be ADD or WITHDRAW." };
         }
@@ -121,9 +147,10 @@ class WalletService {
 
     /**
      * Creates a Razorpay payment order for wallet top-up and stores expected amount server-side.
+     * Enforces that verification MUST match this server-created pending order.
      */
     static async createRazorpayOrder(userId, amount) {
-        const numAmt = parseFloat(amount);
+        const numAmt = Number(parseFloat(amount).toFixed(2));
         if (isNaN(numAmt) || numAmt <= 0) {
             throw { statusCode: 400, message: "Invalid deposit amount" };
         }
@@ -149,7 +176,7 @@ class WalletService {
             orderId = `order_sim_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
         }
 
-        // Store expected order amount and userId server-side to prevent amount manipulation
+        // Store expected order amount and userId server-side to enforce pending verification
         await PaymentRecordModel.create({
             userId,
             razorpay_order_id: orderId,
@@ -169,15 +196,16 @@ class WalletService {
     }
 
     /**
-     * Cryptographically verifies Razorpay HMAC-SHA256 signature, validates server-stored order amount,
-     * and credits funds idempotently with unique payment key constraints.
+     * Cryptographically verifies Razorpay HMAC-SHA256 signature, strictly validates
+     * that a server-created PENDING record exists for this user and order,
+     * and credits funds + writes ledger atomically within a single MongoDB session transaction.
      */
     static async verifyRazorpayPayment(userId, { amount, razorpay_payment_id, razorpay_order_id, razorpay_signature }) {
         if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
             throw { statusCode: 400, message: "Missing payment verification fields." };
         }
 
-        const numAmt = parseFloat(amount);
+        const numAmt = Number(parseFloat(amount).toFixed(2));
         if (isNaN(numAmt) || numAmt <= 0) {
             throw { statusCode: 400, message: "Invalid deposit amount" };
         }
@@ -205,94 +233,119 @@ class WalletService {
             logger.info("Idempotent replay for already-credited payment", { razorpay_payment_id });
             return {
                 status: true,
-                totalAddedFunds: user ? user.funds : 0,
+                totalAddedFunds: user ? Number(user.funds.toFixed(2)) : 0,
                 message: `Payment already processed and credited (ID: ${razorpay_payment_id}).`,
                 idempotentReplay: true
             };
         }
 
-        // 3. SERVER-SIDE ORDER & AMOUNT VALIDATION:
-        // Find stored pending order to verify amount against the order created on server
-        let paymentRecord = await PaymentRecordModel.findOne({ razorpay_order_id, userId });
+        // 3. STRICT SERVER-SIDE PENDING RECORD VALIDATION:
+        // A server-created PENDING record MUST exist for this order and user.
+        // Arbitrary verification requests without a prior server order are rejected immediately.
+        const paymentRecord = await PaymentRecordModel.findOne({ razorpay_order_id, userId });
 
-        if (paymentRecord) {
-            // Verify client-supplied amount matches expected amount created server-side
-            if (Math.abs(paymentRecord.amount - numAmt) > 0.01) {
-                logger.error("Payment amount mismatch with server order", {
-                    expected: paymentRecord.amount,
-                    received: numAmt,
-                    orderId: razorpay_order_id
-                });
-                throw {
-                    statusCode: 400,
-                    message: `Payment amount mismatch: Order expected ₹${paymentRecord.amount}, but verification requested ₹${numAmt}.`
-                };
-            }
+        if (!paymentRecord) {
+            logger.error("Payment verification rejected: No server-created pending order found", {
+                userId,
+                orderId: razorpay_order_id
+            });
+            throw {
+                statusCode: 400,
+                message: `Invalid payment verification: No pending order found on server for ${razorpay_order_id}. Verification rejected.`
+            };
         }
 
-        // 4. Atomically Record Payment & Credit Funds
-        const userBefore = await User.findById(userId);
-        if (!userBefore) {
-            throw { statusCode: 404, message: "User not found" };
+        if (paymentRecord.status === "SUCCESS") {
+            const user = await User.findById(userId);
+            return {
+                status: true,
+                totalAddedFunds: user ? Number(user.funds.toFixed(2)) : 0,
+                message: `Payment already processed and credited.`,
+                idempotentReplay: true
+            };
         }
-        const balanceBefore = userBefore.funds || 0;
 
+        if (paymentRecord.status !== "PENDING") {
+            throw {
+                statusCode: 400,
+                message: `Payment verification rejected: Order is in invalid state (${paymentRecord.status}).`
+            };
+        }
+
+        // Verify client-supplied amount matches expected amount created server-side
+        if (Math.abs(paymentRecord.amount - numAmt) > 0.01) {
+            logger.error("Payment amount mismatch with server order", {
+                expected: paymentRecord.amount,
+                received: numAmt,
+                orderId: razorpay_order_id
+            });
+            throw {
+                statusCode: 400,
+                message: `Payment amount mismatch: Order expected ₹${paymentRecord.amount.toFixed(2)}, but verification requested ₹${numAmt.toFixed(2)}.`
+            };
+        }
+
+        // 4. ATOMIC TRANSACTION: Mark Payment SUCCESS + Increment User Funds + Write Ledger Entry
         try {
-            if (paymentRecord) {
+            return await runInTransaction(async (session) => {
+                const sessionOpt = session ? { session } : {};
+
+                const userBefore = await User.findById(userId, null, sessionOpt);
+                if (!userBefore) {
+                    throw { statusCode: 404, message: "User not found" };
+                }
+                const balanceBefore = Number((userBefore.funds || 0).toFixed(2));
+
+                // A. Update PaymentRecord status
                 paymentRecord.razorpay_payment_id = razorpay_payment_id;
                 paymentRecord.razorpay_signature = razorpay_signature;
                 paymentRecord.status = "SUCCESS";
-                await paymentRecord.save();
-            } else {
-                paymentRecord = await PaymentRecordModel.create({
+                await paymentRecord.save(sessionOpt);
+
+                // B. Credit funds to user wallet
+                const updatedUser = await User.findByIdAndUpdate(
                     userId,
-                    razorpay_payment_id,
-                    razorpay_order_id,
-                    razorpay_signature,
+                    { $inc: { funds: numAmt } },
+                    { new: true, ...sessionOpt }
+                );
+
+                const balanceAfter = Number(updatedUser.funds.toFixed(2));
+
+                // C. Write transaction ledger entry
+                await TransactionModel.create(
+                    [{
+                        userId,
+                        type: TRANSACTION_TYPE.DEPOSIT,
+                        amount: numAmt,
+                        balanceBefore,
+                        balanceAfter,
+                        referenceId: razorpay_payment_id,
+                        status: TRANSACTION_STATUS.SUCCESS,
+                        description: `Razorpay Deposit Verified (Order: ${razorpay_order_id})`
+                    }],
+                    sessionOpt
+                );
+
+                logger.info("Razorpay payment verified and credited via transaction", {
+                    userId,
+                    paymentId: razorpay_payment_id,
                     amount: numAmt,
-                    status: "SUCCESS"
+                    balanceAfter
                 });
-            }
 
-            const updatedUser = await User.findByIdAndUpdate(
-                userId,
-                { $inc: { funds: numAmt } },
-                { new: true }
-            );
-
-            const balanceAfter = updatedUser.funds;
-
-            // 5. Record Wallet Ledger Entry
-            await TransactionModel.create({
-                userId,
-                type: TRANSACTION_TYPE.DEPOSIT,
-                amount: numAmt,
-                balanceBefore,
-                balanceAfter,
-                referenceId: razorpay_payment_id,
-                status: TRANSACTION_STATUS.SUCCESS,
-                description: `Razorpay Deposit Verified (Order: ${razorpay_order_id})`
+                return {
+                    status: true,
+                    totalAddedFunds: balanceAfter,
+                    message: `✓ Payment Verified! ₹${numAmt.toLocaleString("en-IN")} credited to your trading wallet.`
+                };
             });
-
-            logger.info("Razorpay payment verified and credited", {
-                userId,
-                paymentId: razorpay_payment_id,
-                amount: numAmt,
-                balanceAfter
-            });
-
-            return {
-                status: true,
-                totalAddedFunds: balanceAfter,
-                message: `✓ Payment Verified! ₹${numAmt.toLocaleString("en-IN")} credited to your trading wallet.`
-            };
         } catch (error) {
             // Catch duplicate key error if concurrent request raced
             if (error.code === 11000) {
                 const user = await User.findById(userId);
                 return {
                     status: true,
-                    totalAddedFunds: user ? user.funds : balanceBefore,
+                    totalAddedFunds: user ? Number(user.funds.toFixed(2)) : 0,
                     message: "Payment was already recorded by concurrent request.",
                     idempotentReplay: true
                 };
@@ -303,6 +356,7 @@ class WalletService {
 
     /**
      * Retrieves paginated financial transaction history ledger for a user.
+     * Strictly scopes queries to req.userId.
      */
     static async getTransactionHistory(userId, queryParams = {}) {
         const { page = 1, limit = 20 } = queryParams;

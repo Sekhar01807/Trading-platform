@@ -109,7 +109,10 @@ const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
           name: uid,
           qty: Number(stockQuantity),
           price: finalPrice,
+          requestedPrice: finalPrice,
           mode: "SELL",
+          productType,
+          orderType,
         },
         { 
           withCredentials: true

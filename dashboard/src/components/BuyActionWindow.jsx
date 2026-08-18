@@ -103,7 +103,10 @@ const BuyActionWindow = ({ uid, initialPrice = 0, closeBuyWindow }) => {
           name: uid,
           qty: Number(stockQuantity),
           price: finalPrice,
+          requestedPrice: finalPrice,
           mode: "BUY",
+          productType,
+          orderType,
         },
         { 
           withCredentials: true

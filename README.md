@@ -152,40 +152,46 @@ Experience PulseTrade with pre-configured sandbox credentials or instant demo da
 
 ## 🔑 Core Engineering & Business Logic Gaps Addressed
 
-### 1. Server-Enforced Order Validation (GAP 1)
-- **BUY Validation**: The backend independently validates that `available balance >= (qty * price)`. If insufficient, the order is rejected with status `REJECTED`, logging a clear failure reason without touching funds or holdings.
-- **SELL Validation**: The backend validates that `shares owned >= requested quantity`. If a user attempts to sell shares they do not own, or more shares than they have, the order is rejected immediately.
-- Never trust frontend calculations for balances or quantities.
+### 1. Server-Enforced Order Validation & ACID Transactions (GAP 1)
+- **ACID MongoDB Session Transactions**: BUY and SELL operations run in multi-document MongoDB transactions (`mongoose.startSession()`), guaranteeing all-or-nothing consistency across `UserModel` (funds), `HoldingModel` (portfolio), `OrderModel` (audit trail), and `TransactionModel` (financial ledger).
+- **Zero Compensation Lag**: Eliminates manual compensation rollbacks; if any downstream document write fails, the database transaction is automatically aborted.
+- **BUY Validation**: The backend independently validates `available balance >= (qty * executedPrice)`. If insufficient, a `REJECTED` order is recorded in the audit trail without touching funds or holdings.
+- **SELL Validation**: The backend validates `shares owned >= requested quantity`. If unowned or oversold, a `REJECTED` order is recorded immediately.
 
-### 2. Race Conditions & Atomic Concurrency Safety (GAP 2)
-- Prevents double-spending and overselling when concurrent requests arrive simultaneously (e.g. two simultaneous ₹800 BUY orders with only a ₹1,000 balance).
-- Employs atomic conditional updates (`{ _id: userId, funds: { $gte: totalCost } }` and `{ userId, name, qty: { $gte: qty } }`) with automatic rollback compensation on failure.
+### 2. Concurrency Safety & Multi-Document Atomicity (GAP 2)
+- Prevents double-spending and overselling under concurrent requests (e.g. concurrent BUY orders or parallel withdrawals) via atomic conditional writes (`{ _id: userId, funds: { $gte: totalCost } }` and `{ userId, name, qty: { $gte: qty } }`) executed within database transactions.
 
-### 3. Realistic Order Model & Pricing Separation (GAP 3 & 4)
-- **Order Model**: Includes `orderId`, `userId`, `symbol` / `name`, `side` / `mode` (`BUY` / `SELL`), `quantity` / `qty`, `requestedPrice`, `executedPrice`, `marketPrice`, `status` (`PENDING`, `EXECUTED`, `FILLED`, `REJECTED`, `CANCELLED`), `failureReason`, `totalCost`, and timestamps.
-- **Price Separation**: Distinguishes requested market price (`requestedPrice` / `marketPrice`) from actual simulated fill execution price (`executedPrice`).
+### 3. Server-Authoritative Market Pricing & Honest Limit Orders (GAP 3 & 4)
+- **Authoritative Market Pricing**: Execution prices are strictly calculated server-side from live market feeds, never trusting client-supplied execution prices.
+- **Price Model Fields**: Distinguishes `requestedPrice` (client target price), `marketPrice` (server LTP), and `executedPrice` (actual simulated fill price).
+- **Honest LIMIT Order Semantics**:
+  - `MARKET`: Fills immediately at current server market price.
+  - `LIMIT BUY`: Only fills if `serverMarketPrice <= requestedPrice`; otherwise rejected with clear price feedback.
+  - `LIMIT SELL`: Only fills if `serverMarketPrice >= requestedPrice`; otherwise rejected with clear price feedback.
 
-### 4. Layered Security & Centralized Validation (GAP 5 & 6)
+### 4. Hardened Payment Gateway & Strict Pending Validation (GAP 5)
+- **Pre-Created Pending Order Guarantee**: Payment verification strictly requires a pre-existing server-created record with status `PENDING` belonging to `req.userId` with exact matching amount and valid HMAC-SHA256 signature.
+- **Atomic Credit & Ledger**: Wallet balance increments and ledger write occur within a single database transaction, preventing balance/ledger divergence.
+- **Idempotency**: Prevents double-crediting on network retries or replay attacks.
+
+### 5. Layered Security & Centralized Validation (GAP 6 & 7)
 - **Zero-Token Exposure**: Strict `HttpOnly: true` cookies with zero JWT tokens exposed in JSON payloads.
-- **Brute-Force Rate Limiting**: Dedicated auth rate limiter (10 attempts / 15 mins) plus global and trading rate limiters.
-- **Centralized Validation Middleware**: Validates inputs (emails, password strength, positive integers for quantities, valid order modes) before reaching controllers.
+- **Brute-Force Rate Limiting**: Dedicated auth rate limiter (10 attempts / 15 mins) plus global, order, and wallet rate limiters.
+- **Centralized Validation Middleware**: Validates inputs (emails, password strength, positive integers for quantities, valid order modes/types) before reaching controllers.
 - **Generic Auth Errors**: Both unknown users and bad passwords return `"Incorrect email address or password"` to prevent user enumeration.
 
-### 5. Clean Architectural Separation (GAP 7)
+### 6. Clean Architectural Separation (GAP 8)
 - Strict separation of concerns across every domain:
   `Route -> Middleware -> Controller -> Service -> Model`
 - Controllers handle HTTP transport, while `AuthService`, `OrderService`, `HoldingService`, and `WalletService` encapsulate business logic.
 
-### 6. Strict User Isolation & Access Control (GAP 8 & 9)
-- All authenticated endpoints (`/allOrders`, `/allHoldings`, `/allPositions`, `/user/funds`, `/user/transactions`) are strictly scoped to the authenticated `req.userId`.
+### 7. Strict User Isolation & Access Control (GAP 9)
+- All authenticated endpoints (`/allOrders`, `/allHoldings`, `/allPositions`, `/user/funds`, `/user/transactions`, `/verify-razorpay-payment`) are strictly scoped to the authenticated `req.userId`.
 - Rigorously verified through integration tests ensuring User A can never read or mutate User B's portfolio or order records.
 
-### 7. Transparent Market Data Presentation (GAP 10)
+### 8. Transparent Market Data Presentation & Diagnostics (GAP 10, 11 & 12)
 - Accurately presented as a paper-trading platform that simulates trading using market data polled from Yahoo Finance, supplemented with synthetic micro-ticks outside market hours.
-
-### 8. Standardized Error Handling & Observability (GAP 11 & 12)
-- Structured error middleware mapping status codes (400, 401, 403, 404, 409, 429, 500) without exposing stack traces in production.
-- Structured JSON logging with correlation IDs (`X-Request-Id`) and response latency metrics.
+- Structured error middleware mapping status codes (400, 401, 403, 404, 409, 429, 500) and JSON logging with correlation IDs (`X-Request-Id`).
 
 ---
 
@@ -325,12 +331,13 @@ npm test
 |---|---|:---:|
 | **Health & Observability** | Health endpoint (`/health`), OpenAPI JSON, Swagger UI, `X-Request-Id` correlation tracking | ✅ Passed |
 | **Authentication & Security** | Signup validation, duplicate email rejection, HttpOnly cookies, zero-token JSON, generic login errors | ✅ Passed |
-| **BUY Order Engine** | Atomic balance deduction, insufficient funds rejection (`status: REJECTED`), holding creation, weighted cost basis math | ✅ Passed |
-| **SELL Order Engine** | Atomic holding deduction, overselling rejection, selling unowned stock rejection, proceeds crediting, holding removal upon 0 qty | ✅ Passed |
-| **Portfolio Math** | Multi-purchase weighted average price (`(5*1000 + 5*1200)/10 = 1100 avg`), partial sell cost basis preservation | ✅ Passed |
-| **User Isolation** | User A cannot see User B's orders, holdings, positions, funds, or wallet transactions | ✅ Passed |
+| **BUY Order ACID Engine** | Multi-document session transactions, insufficient funds rejection (`status: REJECTED`), unfillable LIMIT BUY rejection, fillable LIMIT BUY execution, weighted cost basis math | ✅ Passed |
+| **SELL Order ACID Engine** | Multi-document session transactions, selling unowned stock rejection, overselling rejection, unfillable LIMIT SELL rejection, proceeds crediting, holding removal on 0 qty | ✅ Passed |
+| **Portfolio Math** | Multi-purchase weighted average price calculation, partial sell cost basis preservation | ✅ Passed |
+| **User Isolation** | User A cannot see User B's orders, holdings, positions, funds, or wallet transactions; cross-user payment verification blocked | ✅ Passed |
 | **Pagination & Filtering** | Pagination metadata (`page`, `limit`, `totalPages`), mode filter (`BUY`/`SELL`), symbol search, price/date sorting | ✅ Passed |
-| **Wallet & Idempotency** | Atomic ADD/WITHDRAW, overdrawing prevention, HMAC-SHA256 verification, replay attack prevention | ✅ Passed |
+| **Razorpay Gateway & Ledger** | Reject missing pending records, amount mismatch rejection, signature forgery rejection, atomic credit + ledger, idempotency / replay prevention | ✅ Passed |
+| **Wallet Concurrency & Withdraw** | Atomic ADD/WITHDRAW session transactions, overdrawing prevention, non-negative balance guarantees | ✅ Passed |
 | **Backward Compatibility** | Legacy root routes (`/allHoldings`, `/user/funds`, `/allOrders`, `/newOrders`) | ✅ Passed |
 
 ---

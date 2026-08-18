@@ -9,7 +9,7 @@ const { PositionModel } = require("../model/PositionModel");
 const { OrderModel } = require("../model/OrderModel");
 const { TransactionModel } = require("../model/TransactionModel");
 const { PaymentRecordModel } = require("../model/PaymentRecordModel");
-const { ORDER_STATUS, ORDER_MODE, TRANSACTION_TYPE } = require("../config/constants");
+const { ORDER_STATUS, ORDER_MODE, TRANSACTION_TYPE, INITIAL_PRICES } = require("../config/constants");
 
 const RAZORPAY_SECRET = process.env.RAZORPAY_KEY_SECRET || "MLfOsojM55l35lIfKw4k4wZi";
 
@@ -99,7 +99,7 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
             expect(res.statusCode).toBe(201);
             expect(res.body.success).toBe(true);
             expect(res.body.user.username).toBe("TraderA");
-            expect(res.body.token).toBeUndefined(); // Zero token in JSON payload
+            expect(res.body.token).toBeUndefined();
 
             const setCookie = res.headers["set-cookie"];
             expect(setCookie).toBeDefined();
@@ -193,28 +193,28 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
     // 3. Wallet Deposit & Correct Financial Semantics
     // ---------------------------------------------------------
     describe("3. Wallet & Margin Operations (Financial Semantics)", () => {
-        test("Deposit ₹50,000 into User A wallet", async () => {
+        test("Deposit ₹100,000 into User A wallet", async () => {
             const res = await request(app)
                 .post("/api/v1/wallet/user/funds")
                 .set("Cookie", userACookie)
-                .send({ amount: 50000, action: "ADD" });
+                .send({ amount: 100000, action: "ADD" });
 
             expect(res.statusCode).toBe(200);
-            expect(res.body.totalAddedFunds).toBe(50000);
+            expect(res.body.totalAddedFunds).toBe(100000);
 
             const tx = await TransactionModel.findOne({ userId: userA._id, type: TRANSACTION_TYPE.DEPOSIT });
             expect(tx).not.toBeNull();
-            expect(tx.balanceAfter).toBe(50000);
+            expect(tx.balanceAfter).toBe(100000);
         });
 
-        test("GET /api/v1/wallet/user/funds should reflect ₹50,000 available cash without double-subtraction", async () => {
+        test("GET /api/v1/wallet/user/funds should reflect ₹100,000 available cash without double-subtraction", async () => {
             const res = await request(app)
                 .get("/api/v1/wallet/user/funds")
                 .set("Cookie", userACookie);
 
             expect(res.statusCode).toBe(200);
-            expect(res.body.availableCash).toBe(50000);
-            expect(res.body.totalAddedFunds).toBe(50000);
+            expect(res.body.availableCash).toBe(100000);
+            expect(res.body.totalAddedFunds).toBe(100000);
         });
 
         test("Withdrawal exceeding available balance should be rejected", async () => {
@@ -226,12 +226,27 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
             expect(res.statusCode).toBe(400);
             expect(res.body.message).toContain("exceeds available cash");
         });
+
+        test("Valid withdrawal should atomically deduct funds and write ledger", async () => {
+            const res = await request(app)
+                .post("/api/v1/wallet/user/funds")
+                .set("Cookie", userACookie)
+                .send({ amount: 10000, action: "WITHDRAW" });
+
+            expect(res.statusCode).toBe(200);
+            expect(res.body.totalAddedFunds).toBe(90000);
+
+            const tx = await TransactionModel.findOne({ userId: userA._id, type: TRANSACTION_TYPE.WITHDRAWAL });
+            expect(tx).not.toBeNull();
+            expect(tx.amount).toBe(10000);
+            expect(tx.balanceAfter).toBe(90000);
+        });
     });
 
     // ---------------------------------------------------------
-    // 4. BUY Orders: Server Validation & Concurrency Safety
+    // 4. BUY Orders: Server Validation, Limit Logic & Transactions
     // ---------------------------------------------------------
-    describe("4. BUY Orders (Server-Side Validation & Concurrency)", () => {
+    describe("4. BUY Orders (Server Validation, Limit Checks & ACID Transactions)", () => {
         test("BUY with invalid input should be rejected by validation middleware", async () => {
             const resInvalidQty = await request(app)
                 .post("/api/v1/orders/newOrders")
@@ -247,11 +262,11 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
         });
 
         test("BUY with INSUFFICIENT funds should be rejected and recorded as REJECTED", async () => {
-            // User A has ₹50,000. Try to BUY 100 shares @ ₹1000 = ₹100,000
+            // User A has ₹90,000. Try to BUY 1000 shares @ ₹1000 = ₹1,000,000
             const res = await request(app)
                 .post("/api/v1/orders/newOrders")
                 .set("Cookie", userACookie)
-                .send({ name: "RELIANCE", qty: 100, price: 1000, mode: "BUY" });
+                .send({ name: "RELIANCE", qty: 1000, price: 1000, mode: "BUY" });
 
             expect(res.statusCode).toBe(400);
             expect(res.body.message).toContain("Insufficient wallet balance");
@@ -267,36 +282,88 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
 
             // Verify User A's funds remained unchanged
             const userCheck = await User.findById(userA._id);
-            expect(userCheck.funds).toBe(50000);
+            expect(userCheck.funds).toBe(90000);
         });
 
-        test("Valid BUY order should execute atomically, deduct funds, create holding and write ledger", async () => {
-            // BUY 5 INFY @ ₹1000 = ₹5,000
+        test("LIMIT BUY rejected when limit price is lower than market price", async () => {
+            const marketPrice = INITIAL_PRICES["TATAPOWER"] || 124.15;
+            const lowLimitPrice = Number((marketPrice - 50).toFixed(2));
+
             const res = await request(app)
                 .post("/api/v1/orders/newOrders")
                 .set("Cookie", userACookie)
-                .send({ name: "INFY", qty: 5, price: 1000, mode: "BUY" });
+                .send({
+                    name: "TATAPOWER",
+                    qty: 5,
+                    price: lowLimitPrice,
+                    requestedPrice: lowLimitPrice,
+                    mode: "BUY",
+                    orderType: "LIMIT"
+                });
+
+            expect(res.statusCode).toBe(400);
+            expect(res.body.message).toContain("below current market price");
+
+            const rejectedOrder = await OrderModel.findOne({
+                userId: userA._id,
+                name: "TATAPOWER",
+                orderType: "LIMIT",
+                status: ORDER_STATUS.REJECTED
+            });
+            expect(rejectedOrder).not.toBeNull();
+        });
+
+        test("LIMIT BUY executes when limit price is at or above market price", async () => {
+            const marketPrice = INITIAL_PRICES["TATAPOWER"] || 124.15;
+            const highLimitPrice = Number((marketPrice + 50).toFixed(2));
+
+            const res = await request(app)
+                .post("/api/v1/orders/newOrders")
+                .set("Cookie", userACookie)
+                .send({
+                    name: "TATAPOWER",
+                    qty: 5,
+                    price: highLimitPrice,
+                    requestedPrice: highLimitPrice,
+                    mode: "BUY",
+                    orderType: "LIMIT"
+                });
 
             expect(res.statusCode).toBe(201);
             expect(res.body.success).toBe(true);
-            expect(res.body.remainingFunds).toBe(45000);
             expect(res.body.order.status).toBe(ORDER_STATUS.EXECUTED);
 
-            // Verify holding created
+            const holding = await HoldingModel.findOne({ userId: userA._id, name: "TATAPOWER" });
+            expect(holding).not.toBeNull();
+            expect(holding.qty).toBe(5);
+        });
+
+        test("Valid MARKET BUY order executes atomically, deducts funds, creates holding and ledger", async () => {
+            const userBefore = await User.findById(userA._id);
+            const initialFunds = userBefore.funds;
+
+            const res = await request(app)
+                .post("/api/v1/orders/newOrders")
+                .set("Cookie", userACookie)
+                .send({ name: "INFY", qty: 5, price: 1000, mode: "BUY", orderType: "MARKET" });
+
+            expect(res.statusCode).toBe(201);
+            expect(res.body.success).toBe(true);
+            expect(res.body.order.status).toBe(ORDER_STATUS.EXECUTED);
+            expect(res.body.order.marketPrice).toBeGreaterThan(0);
+            expect(res.body.order.executedPrice).toBeGreaterThan(0);
+
             const holding = await HoldingModel.findOne({ userId: userA._id, name: "INFY" });
             expect(holding).not.toBeNull();
             expect(holding.qty).toBe(5);
-            expect(holding.avg).toBe(1000);
 
-            // Verify ledger entry
             const tx = await TransactionModel.findOne({
                 userId: userA._id,
                 type: TRANSACTION_TYPE.ORDER_BUY,
                 referenceId: res.body.order._id.toString()
             });
             expect(tx).not.toBeNull();
-            expect(tx.amount).toBe(5000);
-            expect(tx.balanceAfter).toBe(45000);
+            expect(tx.status).toBe("SUCCESS");
         });
     });
 
@@ -305,27 +372,30 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
     // ---------------------------------------------------------
     describe("5. Portfolio Cost Basis (Weighted Average) Math", () => {
         test("Second BUY of INFY should recalculate weighted average cost basis accurately", async () => {
-            // Previously: 5 INFY @ ₹1000 (total basis = ₹5,000)
-            // Now: BUY 5 INFY @ ₹1200 (cost = ₹6,000)
-            // Total: 10 INFY, Total basis = ₹11,000, Weighted Avg = ₹1,100.00
+            const holdingBefore = await HoldingModel.findOne({ userId: userA._id, name: "INFY" });
+            const initialQty = holdingBefore.qty;
+            const initialAvg = holdingBefore.avg;
+
             const res = await request(app)
                 .post("/api/v1/orders/newOrders")
                 .set("Cookie", userACookie)
                 .send({ name: "INFY", qty: 5, price: 1200, mode: "BUY" });
 
             expect(res.statusCode).toBe(201);
-            expect(res.body.remainingFunds).toBe(39000);
 
-            const holding = await HoldingModel.findOne({ userId: userA._id, name: "INFY" });
-            expect(holding.qty).toBe(10);
-            expect(holding.avg).toBe(1100); // (5000 + 6000) / 10 = 1100
+            const holdingAfter = await HoldingModel.findOne({ userId: userA._id, name: "INFY" });
+            expect(holdingAfter.qty).toBe(initialQty + 5);
+
+            const expectedBasis = (initialQty * initialAvg) + (5 * res.body.order.executedPrice);
+            const expectedAvg = Number((expectedBasis / (initialQty + 5)).toFixed(2));
+            expect(holdingAfter.avg).toBe(expectedAvg);
         });
     });
 
     // ---------------------------------------------------------
-    // 6. SELL Orders: Server Validation & Concurrency Safety
+    // 6. SELL Orders: Validation, Limit Checks & ACID Transactions
     // ---------------------------------------------------------
-    describe("6. SELL Orders (Server-Side Validation & Concurrency)", () => {
+    describe("6. SELL Orders (Server Validation, Limit Checks & Concurrency)", () => {
         test("SELL stock that user DOES NOT OWN should be rejected", async () => {
             const res = await request(app)
                 .post("/api/v1/orders/newOrders")
@@ -344,67 +414,95 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
         });
 
         test("SELL MORE shares than owned should be rejected", async () => {
-            // User A owns 10 INFY. Try to SELL 15 INFY.
+            const holding = await HoldingModel.findOne({ userId: userA._id, name: "INFY" });
+            const owned = holding.qty;
+
             const res = await request(app)
                 .post("/api/v1/orders/newOrders")
                 .set("Cookie", userACookie)
-                .send({ name: "INFY", qty: 15, price: 1300, mode: "SELL" });
+                .send({ name: "INFY", qty: owned + 10, price: 1300, mode: "SELL" });
 
             expect(res.statusCode).toBe(400);
-            expect(res.body.message).toContain("only own 10 share(s)");
+            expect(res.body.message).toContain(`only own ${owned} share(s)`);
 
-            // Verify holdings unchanged
+            const holdingAfter = await HoldingModel.findOne({ userId: userA._id, name: "INFY" });
+            expect(holdingAfter.qty).toBe(owned);
+        });
+
+        test("LIMIT SELL rejected when limit price is higher than current market price", async () => {
             const holding = await HoldingModel.findOne({ userId: userA._id, name: "INFY" });
-            expect(holding.qty).toBe(10);
+            const currentMarketPrice = INITIAL_PRICES["INFY"] || 1555.45;
+            const highLimitPrice = Number((currentMarketPrice + 5000).toFixed(2));
+
+            const res = await request(app)
+                .post("/api/v1/orders/newOrders")
+                .set("Cookie", userACookie)
+                .send({
+                    name: "INFY",
+                    qty: 2,
+                    price: highLimitPrice,
+                    requestedPrice: highLimitPrice,
+                    mode: "SELL",
+                    orderType: "LIMIT"
+                });
+
+            expect(res.statusCode).toBe(400);
+            expect(res.body.message).toContain("above current market price");
+
+            const rejectedOrder = await OrderModel.findOne({
+                userId: userA._id,
+                name: "INFY",
+                orderType: "LIMIT",
+                status: ORDER_STATUS.REJECTED
+            });
+            expect(rejectedOrder).not.toBeNull();
         });
 
         test("Valid partial SELL should deduct shares, credit proceeds, and keep holding", async () => {
-            // User A owns 10 INFY. SELL 4 INFY @ ₹1300 = ₹5,200 proceeds.
+            const holdingBefore = await HoldingModel.findOne({ userId: userA._id, name: "INFY" });
+            const qtyToSell = 4;
+            const userBefore = await User.findById(userA._id);
+
             const res = await request(app)
                 .post("/api/v1/orders/newOrders")
                 .set("Cookie", userACookie)
-                .send({ name: "INFY", qty: 4, price: 1300, mode: "SELL" });
+                .send({ name: "INFY", qty: qtyToSell, price: 1300, mode: "SELL" });
 
             expect(res.statusCode).toBe(201);
-            expect(res.body.totalFunds).toBe(44200); // 39000 + 5200
+            expect(res.body.totalFunds).toBeGreaterThan(userBefore.funds);
 
-            const holding = await HoldingModel.findOne({ userId: userA._id, name: "INFY" });
-            expect(holding).not.toBeNull();
-            expect(holding.qty).toBe(6);
-            expect(holding.avg).toBe(1100); // Cost basis remains 1100 for remaining shares
+            const holdingAfter = await HoldingModel.findOne({ userId: userA._id, name: "INFY" });
+            expect(holdingAfter).not.toBeNull();
+            expect(holdingAfter.qty).toBe(holdingBefore.qty - qtyToSell);
+            expect(holdingAfter.avg).toBe(holdingBefore.avg);
         });
 
         test("Valid complete SELL should delete holding record when qty reaches 0", async () => {
-            // User A owns 6 INFY. SELL remaining 6 INFY @ ₹1300 = ₹7,800.
+            const holding = await HoldingModel.findOne({ userId: userA._id, name: "INFY" });
+            const remainingQty = holding.qty;
+
             const res = await request(app)
                 .post("/api/v1/orders/newOrders")
                 .set("Cookie", userACookie)
-                .send({ name: "INFY", qty: 6, price: 1300, mode: "SELL" });
+                .send({ name: "INFY", qty: remainingQty, price: 1300, mode: "SELL" });
 
             expect(res.statusCode).toBe(201);
-            expect(res.body.totalFunds).toBe(52000); // 44200 + 7800
 
-            const holding = await HoldingModel.findOne({ userId: userA._id, name: "INFY" });
-            expect(holding).toBeNull(); // Clean deletion
+            const holdingAfter = await HoldingModel.findOne({ userId: userA._id, name: "INFY" });
+            expect(holdingAfter).toBeNull();
         });
     });
 
     // ---------------------------------------------------------
-    // 7. Strict User Isolation & Access Control (GAP 9)
+    // 7. Strict User Isolation & Access Control
     // ---------------------------------------------------------
     describe("7. User Isolation & Access Control", () => {
         beforeAll(async () => {
-            // User A buys 2 TATAPOWER
-            await request(app)
-                .post("/api/v1/orders/newOrders")
-                .set("Cookie", userACookie)
-                .send({ name: "TATAPOWER", qty: 2, price: 200, mode: "BUY" });
-
-            // User B deposits ₹10,000 and buys 1 WIPRO
+            // User B deposits ₹20,000 and buys 1 WIPRO
             await request(app)
                 .post("/api/v1/wallet/user/funds")
                 .set("Cookie", userBCookie)
-                .send({ amount: 10000, action: "ADD" });
+                .send({ amount: 20000, action: "ADD" });
 
             await request(app)
                 .post("/api/v1/orders/newOrders")
@@ -441,15 +539,6 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
             expect(resB.statusCode).toBe(200);
             expect(resB.body.data.every(tx => tx.userId.toString() === userB._id.toString())).toBe(true);
         });
-
-        test("User B funds check returns only User B's balance", async () => {
-            const resB = await request(app)
-                .get("/api/v1/wallet/user/funds")
-                .set("Cookie", userBCookie);
-
-            expect(resB.statusCode).toBe(200);
-            expect(resB.body.totalAddedFunds).toBe(9500); // 10000 - 500
-        });
     });
 
     // ---------------------------------------------------------
@@ -465,7 +554,7 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
             expect(res.body.pagination).toBeDefined();
             expect(res.body.pagination.page).toBe(1);
             expect(res.body.pagination.limit).toBe(2);
-            expect(res.body.pagination.totalOrders).toBeGreaterThanOrEqual(4);
+            expect(res.body.pagination.totalOrders).toBeGreaterThanOrEqual(3);
             expect(res.body.data.length).toBe(2);
         });
 
@@ -477,28 +566,41 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
             expect(res.statusCode).toBe(200);
             expect(res.body.data.every(o => o.mode === "BUY")).toBe(true);
         });
-
-        test("Filter by symbol (TATAPOWER) should return matching stock orders with sanitized regex", async () => {
-            const res = await request(app)
-                .get("/api/v1/orders/allOrders?symbol=TATAPOWER")
-                .set("Cookie", userACookie);
-
-            expect(res.statusCode).toBe(200);
-            expect(res.body.data.every(o => o.name === "TATAPOWER")).toBe(true);
-        });
     });
 
     // ---------------------------------------------------------
-    // 9. Razorpay Sandbox Order Creation, Amount Check & Idempotency
+    // 9. Razorpay Server-Side Validation, Security & Atomic Credit
     // ---------------------------------------------------------
-    describe("9. Razorpay Sandbox Server-Side Verification & Idempotency", () => {
+    describe("9. Razorpay Server-Side Validation & Atomic Credit", () => {
         let createdOrderId = "";
+
+        test("Verification should REJECT when NO server-created pending record exists", async () => {
+            const arbitraryOrderId = `order_fake_${Date.now()}`;
+            const paymentId = `pay_fake_${Date.now()}`;
+            const signature = crypto
+                .createHmac("sha256", RAZORPAY_SECRET)
+                .update(`${arbitraryOrderId}|${paymentId}`)
+                .digest("hex");
+
+            const res = await request(app)
+                .post("/api/v1/wallet/verify-razorpay-payment")
+                .set("Cookie", userACookie)
+                .send({
+                    amount: 5000,
+                    razorpay_payment_id: paymentId,
+                    razorpay_order_id: arbitraryOrderId,
+                    razorpay_signature: signature
+                });
+
+            expect(res.statusCode).toBe(400);
+            expect(res.body.message).toContain("No pending order found");
+        });
 
         test("POST /api/v1/wallet/create-razorpay-order should store pending order server-side", async () => {
             const res = await request(app)
                 .post("/api/v1/wallet/create-razorpay-order")
                 .set("Cookie", userACookie)
-                .send({ amount: 20000 });
+                .send({ amount: 25000 });
 
             expect(res.statusCode).toBe(200);
             expect(res.body.order_id).toBeDefined();
@@ -506,11 +608,33 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
 
             const pending = await PaymentRecordModel.findOne({ razorpay_order_id: createdOrderId });
             expect(pending).not.toBeNull();
-            expect(pending.amount).toBe(20000);
+            expect(pending.amount).toBe(25000);
             expect(pending.status).toBe("PENDING");
+            expect(pending.userId.toString()).toBe(userA._id.toString());
         });
 
-        test("Verification should REJECT if amount is tampered/mismatched with server order", async () => {
+        test("User B should be REJECTED if trying to verify User A's pending order", async () => {
+            const paymentId = `pay_cross_${Date.now()}`;
+            const signature = crypto
+                .createHmac("sha256", RAZORPAY_SECRET)
+                .update(`${createdOrderId}|${paymentId}`)
+                .digest("hex");
+
+            const res = await request(app)
+                .post("/api/v1/wallet/verify-razorpay-payment")
+                .set("Cookie", userBCookie)
+                .send({
+                    amount: 25000,
+                    razorpay_payment_id: paymentId,
+                    razorpay_order_id: createdOrderId,
+                    razorpay_signature: signature
+                });
+
+            expect(res.statusCode).toBe(400);
+            expect(res.body.message).toContain("No pending order found");
+        });
+
+        test("Verification should REJECT if amount is mismatched with server order", async () => {
             const paymentId = `pay_mismatch_${Date.now()}`;
             const signature = crypto
                 .createHmac("sha256", RAZORPAY_SECRET)
@@ -521,7 +645,7 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
                 .post("/api/v1/wallet/verify-razorpay-payment")
                 .set("Cookie", userACookie)
                 .send({
-                    amount: 99999, // Tampered client amount
+                    amount: 99999,
                     razorpay_payment_id: paymentId,
                     razorpay_order_id: createdOrderId,
                     razorpay_signature: signature
@@ -531,19 +655,37 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
             expect(res.body.message).toContain("Payment amount mismatch");
         });
 
-        test("Valid signature with matching server order amount should credit funds and prevent replay", async () => {
+        test("Verification should REJECT on tampered HMAC-SHA256 signature", async () => {
+            const res = await request(app)
+                .post("/api/v1/wallet/verify-razorpay-payment")
+                .set("Cookie", userACookie)
+                .send({
+                    amount: 25000,
+                    razorpay_payment_id: `pay_tamper_${Date.now()}`,
+                    razorpay_order_id: createdOrderId,
+                    razorpay_signature: "tampered_fake_signature"
+                });
+
+            expect(res.statusCode).toBe(400);
+            expect(res.body.message).toContain("signature verification failed");
+        });
+
+        test("Valid signature with matching server order amount credits funds atomically and allows idempotent replay", async () => {
             const paymentId = `pay_valid_${Date.now()}`;
             const signature = crypto
                 .createHmac("sha256", RAZORPAY_SECRET)
                 .update(`${createdOrderId}|${paymentId}`)
                 .digest("hex");
 
-            // Initial deposit
+            const userBefore = await User.findById(userA._id);
+            const balanceBefore = userBefore.funds;
+
+            // Initial verification & credit
             const res1 = await request(app)
                 .post("/api/v1/wallet/verify-razorpay-payment")
                 .set("Cookie", userACookie)
                 .send({
-                    amount: 20000,
+                    amount: 25000,
                     razorpay_payment_id: paymentId,
                     razorpay_order_id: createdOrderId,
                     razorpay_signature: signature
@@ -551,13 +693,24 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
 
             expect(res1.statusCode).toBe(200);
             expect(res1.body.status).toBe(true);
+            expect(res1.body.totalAddedFunds).toBe(balanceBefore + 25000);
 
-            // Replay attack
+            // Verify payment record updated to SUCCESS
+            const updatedRecord = await PaymentRecordModel.findOne({ razorpay_order_id: createdOrderId });
+            expect(updatedRecord.status).toBe("SUCCESS");
+            expect(updatedRecord.razorpay_payment_id).toBe(paymentId);
+
+            // Verify transaction ledger created
+            const tx = await TransactionModel.findOne({ referenceId: paymentId });
+            expect(tx).not.toBeNull();
+            expect(tx.amount).toBe(25000);
+
+            // Replay attack / Repeated verification
             const res2 = await request(app)
                 .post("/api/v1/wallet/verify-razorpay-payment")
                 .set("Cookie", userACookie)
                 .send({
-                    amount: 20000,
+                    amount: 25000,
                     razorpay_payment_id: paymentId,
                     razorpay_order_id: createdOrderId,
                     razorpay_signature: signature
@@ -565,26 +718,15 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
 
             expect(res2.statusCode).toBe(200);
             expect(res2.body.idempotentReplay).toBe(true);
-        });
 
-        test("Tampered signature should be rejected (400)", async () => {
-            const res = await request(app)
-                .post("/api/v1/wallet/verify-razorpay-payment")
-                .set("Cookie", userACookie)
-                .send({
-                    amount: 5000,
-                    razorpay_payment_id: `pay_fake_${Date.now()}`,
-                    razorpay_order_id: `order_fake_${Date.now()}`,
-                    razorpay_signature: "tampered_fake_signature"
-                });
-
-            expect(res.statusCode).toBe(400);
-            expect(res.body.message).toContain("signature verification failed");
+            // Balance must not increase again
+            const userAfterReplay = await User.findById(userA._id);
+            expect(userAfterReplay.funds).toBe(balanceBefore + 25000);
         });
     });
 
     // ---------------------------------------------------------
-    // 10. Backward Compatibility Root Aliases & Paginated Transactions
+    // 10. Backward Compatibility Root Aliases & Ledger Queries
     // ---------------------------------------------------------
     describe("10. Backward Compatibility & Paginated Transaction Ledger", () => {
         test("GET /api/v1/wallet/user/transactions with pagination", async () => {

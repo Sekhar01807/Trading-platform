@@ -34,7 +34,7 @@ const SCHEMAS = {
     },
 
     placeOrder: (body) => {
-        const { name, symbol, qty, quantity, price, requestedPrice, mode, side } = body || {};
+        const { name, symbol, qty, quantity, price, requestedPrice, mode, side, productType, orderType } = body || {};
         const stockSymbol = name || symbol;
         const numQty = Number(qty || quantity);
         const numPrice = Number(price || requestedPrice);
@@ -51,6 +51,12 @@ const SCHEMAS = {
         const orderMode = (mode || side || "").toString().toUpperCase();
         if (orderMode !== "BUY" && orderMode !== "SELL") {
             return "Order mode must be either BUY or SELL";
+        }
+        if (productType && !["CNC", "MIS"].includes(productType.toString().toUpperCase())) {
+            return "Product type must be either CNC or MIS";
+        }
+        if (orderType && !["MARKET", "LIMIT"].includes(orderType.toString().toUpperCase())) {
+            return "Order type must be either MARKET or LIMIT";
         }
         return null;
     },

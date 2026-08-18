@@ -3,13 +3,15 @@ const { OrderModel } = require("../model/OrderModel");
 const { HoldingModel } = require("../model/HoldingModel");
 const User = require("../model/UserModel");
 const { TransactionModel } = require("../model/TransactionModel");
-const { ORDER_STATUS, ORDER_MODE, TRANSACTION_TYPE, TRANSACTION_STATUS } = require("../config/constants");
+const { ORDER_STATUS, ORDER_MODE, PRODUCT_TYPE, ORDER_TYPE, TRANSACTION_TYPE, TRANSACTION_STATUS, INITIAL_PRICES } = require("../config/constants");
+const MarketTickerService = require("./MarketTickerService");
+const { runInTransaction } = require("../util/transactionHelper");
 const logger = require("../util/logger");
 
 class OrderService {
     /**
-     * Executes a BUY or SELL order with server-enforced business rules,
-     * atomic race-condition protection, and ledger auditing.
+     * Executes a BUY or SELL order with server-authoritative market pricing,
+     * honest LIMIT/MARKET order evaluation, and true ACID MongoDB multi-document transactions.
      */
     static async executeOrder({
         userId,
@@ -21,13 +23,19 @@ class OrderService {
         requestedPrice,
         mode,
         side,
-        productType = "CNC",
-        orderType = "MARKET"
+        productType = PRODUCT_TYPE.CNC,
+        orderType = ORDER_TYPE.MARKET
     }) {
         const stockSymbol = (name || symbol || "").trim().toUpperCase();
         const orderQty = Number(qty || quantity);
-        const orderPrice = Number(price || requestedPrice);
+        const clientRequestedPrice = Number(requestedPrice || price);
         const orderMode = (mode || side || "").trim().toUpperCase();
+        const cleanProductType = Object.values(PRODUCT_TYPE).includes(productType?.toUpperCase())
+            ? productType.toUpperCase()
+            : PRODUCT_TYPE.CNC;
+        const cleanOrderType = Object.values(ORDER_TYPE).includes(orderType?.toUpperCase())
+            ? orderType.toUpperCase()
+            : ORDER_TYPE.MARKET;
 
         // 1. Central Server-side Input Validation
         if (!stockSymbol || stockSymbol.length === 0) {
@@ -38,7 +46,7 @@ class OrderService {
             throw { statusCode: 400, message: "Order quantity must be a positive whole integer." };
         }
 
-        if (isNaN(orderPrice) || orderPrice <= 0) {
+        if (isNaN(clientRequestedPrice) || clientRequestedPrice <= 0) {
             throw { statusCode: 400, message: "Order price must be greater than zero." };
         }
 
@@ -46,53 +54,139 @@ class OrderService {
             throw { statusCode: 400, message: "Invalid order mode. Must be BUY or SELL." };
         }
 
-        // 2. Separate Market/Requested Price from Execution Price (simulated fill)
-        const reqPrice = Number(requestedPrice) > 0 ? Number(requestedPrice) : orderPrice;
-        const execPrice = orderPrice; // In simulated paper-trading, filled at current market execution price
+        // 2. Server-Authoritative Market Pricing
+        const livePrices = MarketTickerService.getLivePrices();
+        const liveMarketPrice = livePrices[stockSymbol] || INITIAL_PRICES[stockSymbol];
+        const serverMarketPrice = Number((liveMarketPrice || clientRequestedPrice).toFixed(2));
+        const normalizedRequestedPrice = Number(clientRequestedPrice.toFixed(2));
+
+        let executedPrice = serverMarketPrice;
+
+        // 3. Honest LIMIT vs MARKET Order Evaluation
+        if (cleanOrderType === ORDER_TYPE.LIMIT) {
+            if (orderMode === ORDER_MODE.BUY) {
+                // BUY Limit: buyer wants to pay at most normalizedRequestedPrice
+                if (normalizedRequestedPrice < serverMarketPrice) {
+                    const failureReason = `Limit BUY price ₹${normalizedRequestedPrice.toFixed(2)} is below current market price ₹${serverMarketPrice.toFixed(2)}. Limit order cannot be executed.`;
+                    const rejectedOrder = await OrderModel.create({
+                        userId,
+                        name: stockSymbol,
+                        symbol: stockSymbol,
+                        qty: orderQty,
+                        quantity: orderQty,
+                        price: normalizedRequestedPrice,
+                        requestedPrice: normalizedRequestedPrice,
+                        executedPrice: 0,
+                        marketPrice: serverMarketPrice,
+                        mode: ORDER_MODE.BUY,
+                        side: ORDER_MODE.BUY,
+                        productType: cleanProductType,
+                        orderType: cleanOrderType,
+                        status: ORDER_STATUS.REJECTED,
+                        failureReason,
+                        totalCost: Number((orderQty * normalizedRequestedPrice).toFixed(2))
+                    });
+
+                    logger.warn("LIMIT BUY Order Rejected: Price condition not met", {
+                        userId,
+                        symbol: stockSymbol,
+                        limitPrice: normalizedRequestedPrice,
+                        marketPrice: serverMarketPrice
+                    });
+
+                    throw {
+                        statusCode: 400,
+                        message: `Order Rejected: ${failureReason}`,
+                        order: rejectedOrder
+                    };
+                }
+                // Marketable Limit Buy: executes at current market price (or limit price)
+                executedPrice = serverMarketPrice;
+            } else {
+                // SELL Limit: seller wants to receive at least normalizedRequestedPrice
+                if (normalizedRequestedPrice > serverMarketPrice) {
+                    const failureReason = `Limit SELL price ₹${normalizedRequestedPrice.toFixed(2)} is above current market price ₹${serverMarketPrice.toFixed(2)}. Limit order cannot be executed.`;
+                    const rejectedOrder = await OrderModel.create({
+                        userId,
+                        name: stockSymbol,
+                        symbol: stockSymbol,
+                        qty: orderQty,
+                        quantity: orderQty,
+                        price: normalizedRequestedPrice,
+                        requestedPrice: normalizedRequestedPrice,
+                        executedPrice: 0,
+                        marketPrice: serverMarketPrice,
+                        mode: ORDER_MODE.SELL,
+                        side: ORDER_MODE.SELL,
+                        productType: cleanProductType,
+                        orderType: cleanOrderType,
+                        status: ORDER_STATUS.REJECTED,
+                        failureReason,
+                        totalCost: Number((orderQty * normalizedRequestedPrice).toFixed(2))
+                    });
+
+                    logger.warn("LIMIT SELL Order Rejected: Price condition not met", {
+                        userId,
+                        symbol: stockSymbol,
+                        limitPrice: normalizedRequestedPrice,
+                        marketPrice: serverMarketPrice
+                    });
+
+                    throw {
+                        statusCode: 400,
+                        message: `Order Rejected: ${failureReason}`,
+                        order: rejectedOrder
+                    };
+                }
+                executedPrice = serverMarketPrice;
+            }
+        } else {
+            // MARKET Order: Authoritative server market execution
+            executedPrice = serverMarketPrice;
+        }
 
         if (orderMode === ORDER_MODE.BUY) {
             return await this.executeBuyOrder({
                 userId,
                 name: stockSymbol,
                 qty: orderQty,
-                requestedPrice: reqPrice,
-                executedPrice: execPrice,
-                productType,
-                orderType
+                requestedPrice: normalizedRequestedPrice,
+                executedPrice,
+                marketPrice: serverMarketPrice,
+                productType: cleanProductType,
+                orderType: cleanOrderType
             });
         } else {
             return await this.executeSellOrder({
                 userId,
                 name: stockSymbol,
                 qty: orderQty,
-                requestedPrice: reqPrice,
-                executedPrice: execPrice,
-                productType,
-                orderType
+                requestedPrice: normalizedRequestedPrice,
+                executedPrice,
+                marketPrice: serverMarketPrice,
+                productType: cleanProductType,
+                orderType: cleanOrderType
             });
         }
     }
 
     /**
-     * Concurrency-safe BUY order execution
+     * Executes BUY order inside a single MongoDB session transaction covering:
+     * - User funds deduction
+     * - Holding creation / weighted cost basis update
+     * - Order creation (status: EXECUTED)
+     * - Financial ledger entry (TransactionModel)
      */
-    static async executeBuyOrder({ userId, name, qty, requestedPrice, executedPrice, productType, orderType }) {
+    static async executeBuyOrder({ userId, name, qty, requestedPrice, executedPrice, marketPrice, productType, orderType }) {
         const totalOrderCost = Number((qty * executedPrice).toFixed(2));
 
-        // 1. Atomic Balance Validation & Deduction
-        // Never trust frontend balance. Enforces funds >= totalOrderCost atomically.
-        const updatedUser = await User.findOneAndUpdate(
-            { _id: userId, funds: { $gte: totalOrderCost } },
-            { $inc: { funds: -totalOrderCost } },
-            { new: true }
-        );
+        // 1. Pre-check User Balance to reject early and record audit if insufficient
+        const userCheck = await User.findById(userId);
+        const currentFunds = userCheck ? Number((userCheck.funds || 0).toFixed(2)) : 0;
 
-        if (!updatedUser) {
-            const user = await User.findById(userId);
-            const currentFunds = user ? (user.funds || 0) : 0;
+        if (!userCheck || currentFunds < totalOrderCost) {
             const failureReason = `Insufficient wallet balance. Required ₹${totalOrderCost.toFixed(2)}, Available ₹${currentFunds.toFixed(2)}.`;
 
-            // Record rejected order in audit trail
             const rejectedOrder = await OrderModel.create({
                 userId,
                 name,
@@ -101,8 +195,8 @@ class OrderService {
                 quantity: qty,
                 price: executedPrice,
                 requestedPrice,
-                executedPrice,
-                marketPrice: requestedPrice,
+                executedPrice: 0,
+                marketPrice,
                 mode: ORDER_MODE.BUY,
                 side: ORDER_MODE.BUY,
                 productType,
@@ -127,12 +221,29 @@ class OrderService {
             };
         }
 
-        const balanceBefore = updatedUser.funds + totalOrderCost;
-        const balanceAfter = updatedUser.funds;
+        // 2. Execute within MongoDB multi-document session transaction
+        return await runInTransaction(async (session) => {
+            const sessionOpt = session ? { session } : {};
 
-        try {
-            // 2. Cost Basis (Weighted Average Price) Calculation & Holding Update
-            let holding = await HoldingModel.findOne({ userId, name });
+            // A. Deduct User Balance Conditionally
+            const updatedUser = await User.findOneAndUpdate(
+                { _id: userId, funds: { $gte: totalOrderCost } },
+                { $inc: { funds: -totalOrderCost } },
+                { new: true, ...sessionOpt }
+            );
+
+            if (!updatedUser) {
+                throw {
+                    statusCode: 400,
+                    message: "Order Rejected: Insufficient wallet balance at execution time."
+                };
+            }
+
+            const balanceBefore = Number((updatedUser.funds + totalOrderCost).toFixed(2));
+            const balanceAfter = Number(updatedUser.funds.toFixed(2));
+
+            // B. Cost Basis (Weighted Average Price) Calculation & Holding Update
+            let holding = await HoldingModel.findOne({ userId, name }, null, sessionOpt);
 
             if (holding) {
                 const totalQty = holding.qty + qty;
@@ -141,52 +252,63 @@ class OrderService {
                 holding.avg = Number((totalCostBasis / totalQty).toFixed(2));
                 holding.price = executedPrice;
                 holding.updatedAt = new Date();
-                await holding.save();
+                await holding.save(sessionOpt);
             } else {
-                holding = await HoldingModel.create({
-                    userId,
-                    name,
-                    qty,
-                    avg: executedPrice,
-                    price: executedPrice,
-                    net: "+0.00%",
-                    day: "+0.00%",
-                    isLoss: false
-                });
+                const newHoldings = await HoldingModel.create(
+                    [{
+                        userId,
+                        name,
+                        qty,
+                        avg: executedPrice,
+                        price: executedPrice,
+                        net: "+0.00%",
+                        day: "+0.00%",
+                        isLoss: false
+                    }],
+                    sessionOpt
+                );
+                holding = Array.isArray(newHoldings) ? newHoldings[0] : newHoldings;
             }
 
-            // 3. Save executed order record
-            const executedOrder = await OrderModel.create({
-                userId,
-                name,
-                symbol: name,
-                qty,
-                quantity: qty,
-                price: executedPrice,
-                requestedPrice,
-                executedPrice,
-                marketPrice: requestedPrice,
-                mode: ORDER_MODE.BUY,
-                side: ORDER_MODE.BUY,
-                productType,
-                orderType,
-                status: ORDER_STATUS.EXECUTED,
-                totalCost: totalOrderCost
-            });
+            // C. Create executed order record
+            const newOrders = await OrderModel.create(
+                [{
+                    userId,
+                    name,
+                    symbol: name,
+                    qty,
+                    quantity: qty,
+                    price: executedPrice,
+                    requestedPrice,
+                    executedPrice,
+                    marketPrice,
+                    mode: ORDER_MODE.BUY,
+                    side: ORDER_MODE.BUY,
+                    productType,
+                    orderType,
+                    status: ORDER_STATUS.EXECUTED,
+                    totalCost: totalOrderCost
+                }],
+                sessionOpt
+            );
+            const executedOrder = Array.isArray(newOrders) ? newOrders[0] : newOrders;
 
-            // 4. Record wallet ledger entry
-            await TransactionModel.create({
-                userId,
-                type: TRANSACTION_TYPE.ORDER_BUY,
-                amount: totalOrderCost,
-                balanceBefore,
-                balanceAfter,
-                status: TRANSACTION_STATUS.SUCCESS,
-                referenceId: executedOrder._id.toString(),
-                description: `Bought ${qty} share(s) of ${name} @ ₹${executedPrice.toFixed(2)}`
-            });
+            // D. Record wallet ledger entry
+            await TransactionModel.create(
+                [{
+                    userId,
+                    type: TRANSACTION_TYPE.ORDER_BUY,
+                    amount: totalOrderCost,
+                    balanceBefore,
+                    balanceAfter,
+                    status: TRANSACTION_STATUS.SUCCESS,
+                    referenceId: executedOrder._id.toString(),
+                    description: `Bought ${qty} share(s) of ${name} @ ₹${executedPrice.toFixed(2)}`
+                }],
+                sessionOpt
+            );
 
-            logger.info("BUY Order Executed", {
+            logger.info("BUY Order Executed via Transaction", {
                 userId,
                 orderId: executedOrder._id,
                 symbol: name,
@@ -202,34 +324,26 @@ class OrderService {
                 order: executedOrder,
                 remainingFunds: balanceAfter
             };
-        } catch (error) {
-            // Rollback deducted funds if holding or order write fails
-            await User.findByIdAndUpdate(userId, { $inc: { funds: totalOrderCost } });
-            logger.error("BUY Order Execution Failure, funds rolled back", { userId, error: error.message });
-            throw error;
-        }
+        });
     }
 
     /**
-     * Concurrency-safe SELL order execution
+     * Executes SELL order inside a single MongoDB session transaction covering:
+     * - Holding quantity deduction (or removal if 0)
+     * - User funds crediting
+     * - Order creation (status: EXECUTED)
+     * - Financial ledger entry (TransactionModel)
      */
-    static async executeSellOrder({ userId, name, qty, requestedPrice, executedPrice, productType, orderType }) {
+    static async executeSellOrder({ userId, name, qty, requestedPrice, executedPrice, marketPrice, productType, orderType }) {
         const totalSaleProceeds = Number((qty * executedPrice).toFixed(2));
 
-        // 1. Atomic Holding Quantity Validation & Deduction
-        // Never trust frontend holdings. Enforces qty >= requested sell qty atomically.
-        const holding = await HoldingModel.findOneAndUpdate(
-            { userId, name, qty: { $gte: qty } },
-            { $inc: { qty: -qty } },
-            { new: true }
-        );
+        // 1. Pre-check Holding Ownership to reject early and record audit
+        const currentHolding = await HoldingModel.findOne({ userId, name });
+        const ownedQty = currentHolding ? currentHolding.qty : 0;
 
-        if (!holding) {
-            const currentHolding = await HoldingModel.findOne({ userId, name });
-            const ownedQty = currentHolding ? currentHolding.qty : 0;
+        if (!currentHolding || ownedQty < qty) {
             const failureReason = `User only owns ${ownedQty} share(s) of ${name}. Cannot sell ${qty} share(s).`;
 
-            // Record rejected order in audit trail
             const rejectedOrder = await OrderModel.create({
                 userId,
                 name,
@@ -238,8 +352,8 @@ class OrderService {
                 quantity: qty,
                 price: executedPrice,
                 requestedPrice,
-                executedPrice,
-                marketPrice: requestedPrice,
+                executedPrice: 0,
+                marketPrice,
                 mode: ORDER_MODE.SELL,
                 side: ORDER_MODE.SELL,
                 productType,
@@ -263,55 +377,79 @@ class OrderService {
             };
         }
 
-        // If all shares of this stock were sold, remove holding entry
-        if (holding.qty === 0) {
-            await HoldingModel.deleteOne({ _id: holding._id });
-        }
+        // 2. Execute within MongoDB multi-document session transaction
+        return await runInTransaction(async (session) => {
+            const sessionOpt = session ? { session } : {};
 
-        try {
-            // 2. Atomically Credit Sale Proceeds to User Balance
-            const userBefore = await User.findById(userId);
-            const balanceBefore = userBefore ? (userBefore.funds || 0) : 0;
+            // A. Deduct Holding Quantity Conditionally
+            const updatedHolding = await HoldingModel.findOneAndUpdate(
+                { userId, name, qty: { $gte: qty } },
+                { $inc: { qty: -qty } },
+                { new: true, ...sessionOpt }
+            );
+
+            if (!updatedHolding) {
+                throw {
+                    statusCode: 400,
+                    message: `Sell order rejected: Insufficient share balance at execution time.`
+                };
+            }
+
+            // If all shares sold, remove holding entry
+            if (updatedHolding.qty === 0) {
+                await HoldingModel.deleteOne({ _id: updatedHolding._id }, sessionOpt);
+            }
+
+            // B. Credit Sale Proceeds to User Balance
+            const userBefore = await User.findById(userId, null, sessionOpt);
+            const balanceBefore = userBefore ? Number((userBefore.funds || 0).toFixed(2)) : 0;
 
             const updatedUser = await User.findByIdAndUpdate(
                 userId,
                 { $inc: { funds: totalSaleProceeds } },
-                { new: true }
+                { new: true, ...sessionOpt }
             );
-            const balanceAfter = updatedUser ? updatedUser.funds : balanceBefore + totalSaleProceeds;
+            const balanceAfter = updatedUser ? Number(updatedUser.funds.toFixed(2)) : Number((balanceBefore + totalSaleProceeds).toFixed(2));
 
-            // 3. Save executed order record
-            const executedOrder = await OrderModel.create({
-                userId,
-                name,
-                symbol: name,
-                qty,
-                quantity: qty,
-                price: executedPrice,
-                requestedPrice,
-                executedPrice,
-                marketPrice: requestedPrice,
-                mode: ORDER_MODE.SELL,
-                side: ORDER_MODE.SELL,
-                productType,
-                orderType,
-                status: ORDER_STATUS.EXECUTED,
-                totalCost: totalSaleProceeds
-            });
+            // C. Create executed order record
+            const newOrders = await OrderModel.create(
+                [{
+                    userId,
+                    name,
+                    symbol: name,
+                    qty,
+                    quantity: qty,
+                    price: executedPrice,
+                    requestedPrice,
+                    executedPrice,
+                    marketPrice,
+                    mode: ORDER_MODE.SELL,
+                    side: ORDER_MODE.SELL,
+                    productType,
+                    orderType,
+                    status: ORDER_STATUS.EXECUTED,
+                    totalCost: totalSaleProceeds
+                }],
+                sessionOpt
+            );
+            const executedOrder = Array.isArray(newOrders) ? newOrders[0] : newOrders;
 
-            // 4. Record wallet ledger entry
-            await TransactionModel.create({
-                userId,
-                type: TRANSACTION_TYPE.ORDER_SELL,
-                amount: totalSaleProceeds,
-                balanceBefore,
-                balanceAfter,
-                status: TRANSACTION_STATUS.SUCCESS,
-                referenceId: executedOrder._id.toString(),
-                description: `Sold ${qty} share(s) of ${name} @ ₹${executedPrice.toFixed(2)}`
-            });
+            // D. Record wallet ledger entry
+            await TransactionModel.create(
+                [{
+                    userId,
+                    type: TRANSACTION_TYPE.ORDER_SELL,
+                    amount: totalSaleProceeds,
+                    balanceBefore,
+                    balanceAfter,
+                    status: TRANSACTION_STATUS.SUCCESS,
+                    referenceId: executedOrder._id.toString(),
+                    description: `Sold ${qty} share(s) of ${name} @ ₹${executedPrice.toFixed(2)}`
+                }],
+                sessionOpt
+            );
 
-            logger.info("SELL Order Executed", {
+            logger.info("SELL Order Executed via Transaction", {
                 userId,
                 orderId: executedOrder._id,
                 symbol: name,
@@ -327,16 +465,7 @@ class OrderService {
                 order: executedOrder,
                 totalFunds: balanceAfter
             };
-        } catch (error) {
-            // Rollback holding deduction if user credit or order save fails
-            await HoldingModel.findOneAndUpdate(
-                { userId, name },
-                { $inc: { qty } },
-                { upsert: true }
-            );
-            logger.error("SELL Order Execution Failure, holdings restored", { userId, error: error.message });
-            throw error;
-        }
+        });
     }
 
     /**
@@ -368,7 +497,7 @@ class OrderService {
             filter.mode = mode.toUpperCase();
         }
 
-        // 3. Symbol Search (Sanitized)
+        // 3. Symbol Search (Sanitized regex)
         if (symbol && typeof symbol === "string" && symbol.trim().length > 0) {
             const escaped = symbol.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             filter.name = { $regex: escaped, $options: "i" };
