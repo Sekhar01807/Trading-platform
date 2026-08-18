@@ -37,10 +37,10 @@ jobs:
 
       - name: Run Backend Integration Test Suite
         env:
-          ATLASDB_URL: ${{ secrets.ATLASDB_URL || 'mongodb://127.0.0.1:27017/pulsetrade_test?replicaSet=rs0&directConnection=true' }}
-          TOKEN_KEY: ${{ secrets.TOKEN_KEY || 'PulseTrade_CI_Test_JWT_Secret_Key_2026!@#' }}
-          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID || 'rzp_test_simulated_key' }}
-          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET || 'pulsetrade_mock_test_secret_for_hmac_signatures' }}
+          ATLASDB_URL: mongodb://127.0.0.1:27017/pulsetrade_test?replicaSet=rs0&directConnection=true
+          TOKEN_KEY: ${{ secrets.TOKEN_KEY }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
           NODE_ENV: test
         run: |
           cd Backend
