@@ -189,7 +189,11 @@ Experience PulseTrade with pre-configured sandbox credentials or instant demo da
 - All authenticated endpoints (`/allOrders`, `/allHoldings`, `/allPositions`, `/user/funds`, `/user/transactions`, `/verify-razorpay-payment`) are strictly scoped to the authenticated `req.userId`.
 - Rigorously verified through integration tests ensuring User A can never read or mutate User B's portfolio or order records.
 
-### 8. Transparent Market Data Presentation & Diagnostics (GAP 10, 11 & 12)
+### 8. Financial Arithmetic & Monetary Precision
+- Standardized currency rounding and integer-paise arithmetic utility (`util/currency.js`) prevents IEEE 754 floating-point inaccuracies across wallet balances, order calculations, and ledger histories.
+- All ledger and portfolio figures are normalized to 2 decimal places with strict mathematical consistency.
+
+### 9. Transparent Market Data Presentation & Diagnostics (GAP 10, 11 & 12)
 - Accurately presented as a paper-trading platform that simulates trading using market data polled from Yahoo Finance, supplemented with synthetic micro-ticks outside market hours.
 - Structured error middleware mapping status codes (400, 401, 403, 404, 409, 429, 500) and JSON logging with correlation IDs (`X-Request-Id`).
 

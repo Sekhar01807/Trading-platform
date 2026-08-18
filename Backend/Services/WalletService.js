@@ -210,8 +210,8 @@ class WalletService {
         }
 
         // 1. Cryptographic HMAC-SHA256 Signature Verification
-        // Never hard-code secret in production code; pull strictly from environment config
-        const secret = process.env.RAZORPAY_KEY_SECRET || (process.env.NODE_ENV === "test" ? "MLfOsojM55l35lIfKw4k4wZi" : null);
+        // Strictly pull secret from environment configuration
+        const secret = process.env.RAZORPAY_KEY_SECRET;
 
         if (!secret) {
             logger.error("Payment verification failed: RAZORPAY_KEY_SECRET environment variable is not configured.");

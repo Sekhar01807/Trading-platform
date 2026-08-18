@@ -11,7 +11,8 @@ const { TransactionModel } = require("../model/TransactionModel");
 const { PaymentRecordModel } = require("../model/PaymentRecordModel");
 const { ORDER_STATUS, ORDER_MODE, TRANSACTION_TYPE, INITIAL_PRICES } = require("../config/constants");
 
-const RAZORPAY_SECRET = process.env.RAZORPAY_KEY_SECRET || "MLfOsojM55l35lIfKw4k4wZi";
+process.env.RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "test_secret_for_mocking";
+const RAZORPAY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
 describe("PulseTrade Paper-Trading Backend Test Suite", () => {
     let userA = null;
@@ -24,6 +25,7 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
     const rawPassword = "StrongTradingPassword123!";
 
     beforeAll(async () => {
+        process.env.RAZORPAY_KEY_SECRET = RAZORPAY_SECRET;
         await connectDB();
         await User.deleteMany({ email: /test_trader_.*@pulsetrade\.com/i });
     });
