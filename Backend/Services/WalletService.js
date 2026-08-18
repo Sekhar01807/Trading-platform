@@ -306,10 +306,15 @@ class WalletService {
         try {
             return await runInTransaction(async (session) => {
                 // A. Update PaymentRecord status
-                paymentRecord.razorpay_payment_id = razorpay_payment_id;
-                paymentRecord.razorpay_signature = razorpay_signature;
-                paymentRecord.status = "SUCCESS";
-                await paymentRecord.save({ session });
+                await PaymentRecordModel.findByIdAndUpdate(
+                    paymentRecord._id,
+                    {
+                        razorpay_payment_id,
+                        razorpay_signature,
+                        status: "SUCCESS"
+                    },
+                    { session }
+                );
 
                 // B. Credit funds to user wallet
                 const updatedUser = await User.findByIdAndUpdate(

@@ -196,35 +196,37 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
         });
 
         test("POST /logout-all should revoke all existing JWT sessions via tokenVersion increment", async () => {
-            // Save current cookie
-            const activeCookie = userBCookie;
+            const revocationEmail = `test_revoke_${Date.now()}@pulsetrade.com`;
+            await request(app)
+                .post("/api/v1/auth/signup")
+                .send({ username: "TraderRevoke", email: revocationEmail, password: rawPassword });
+
+            const loginRes = await request(app)
+                .post("/api/v1/auth/login")
+                .send({ email: revocationEmail, password: rawPassword });
+
+            const setCookie = loginRes.headers["set-cookie"];
+            const revokeCookie = Array.isArray(setCookie) ? setCookie[0].split(";")[0] : setCookie.split(";")[0];
 
             // Verify cookie currently works
             const checkRes1 = await request(app)
                 .get("/api/v1/orders/allOrders")
-                .set("Cookie", activeCookie);
+                .set("Cookie", revokeCookie);
             expect(checkRes1.statusCode).toBe(200);
 
             // Call logout-all
             const logoutAllRes = await request(app)
                 .post("/api/v1/auth/logout-all")
-                .set("Cookie", activeCookie);
+                .set("Cookie", revokeCookie);
             expect(logoutAllRes.statusCode).toBe(200);
             expect(logoutAllRes.body.message).toContain("Successfully signed out from all devices");
 
             // Attempt to use the old JWT token - must be rejected with 401
             const checkRes2 = await request(app)
                 .get("/api/v1/orders/allOrders")
-                .set("Cookie", activeCookie);
+                .set("Cookie", revokeCookie);
             expect(checkRes2.statusCode).toBe(401);
             expect(checkRes2.body.message).toContain("revoked");
-
-            // Re-login User B for subsequent tests
-            const reLoginRes = await request(app)
-                .post("/api/v1/auth/login")
-                .send({ email: emailB, password: rawPassword });
-            const setCookie = reLoginRes.headers["set-cookie"];
-            userBCookie = Array.isArray(setCookie) ? setCookie[0].split(";")[0] : setCookie.split(";")[0];
         });
     });
 

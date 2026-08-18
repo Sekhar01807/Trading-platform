@@ -266,11 +266,17 @@ class OrderService {
             if (holding) {
                 const totalQty = holding.qty + qty;
                 const totalCostBasis = (holding.qty * holding.avg) + (qty * executedPrice);
-                holding.qty = totalQty;
-                holding.avg = Number((totalCostBasis / totalQty).toFixed(2));
-                holding.price = executedPrice;
-                holding.updatedAt = new Date();
-                await holding.save({ session });
+                const avg = Number((totalCostBasis / totalQty).toFixed(2));
+                await HoldingModel.findByIdAndUpdate(
+                    holding._id,
+                    {
+                        qty: totalQty,
+                        avg,
+                        price: executedPrice,
+                        updatedAt: new Date()
+                    },
+                    { session }
+                );
             } else {
                 const newHoldings = await HoldingModel.create(
                     [{
