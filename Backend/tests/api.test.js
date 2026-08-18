@@ -13,7 +13,7 @@ const { ORDER_STATUS, ORDER_MODE, TRANSACTION_TYPE, INITIAL_PRICES } = require("
 
 process.env.NODE_ENV = "test";
 process.env.TOKEN_KEY = process.env.TOKEN_KEY || "PulseTrade_CI_Test_JWT_Secret_Key_2026!@#";
-process.env.RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "test_secret_for_mocking";
+process.env.RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "pulsetrade_mock_test_secret_for_hmac_signatures";
 const RAZORPAY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
 describe("PulseTrade Paper-Trading Backend Test Suite", () => {
@@ -812,6 +812,102 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
 
             expect(res.statusCode).toBe(200);
             expect(res.body.totalAddedFunds).toBeDefined();
+        });
+    });
+
+    // ---------------------------------------------------------
+    // 11. ACID Transaction Rollback & Failure-Injection Verification
+    // ---------------------------------------------------------
+    describe("11. ACID Transaction Rollback & Failure-Injection Verification", () => {
+        test("BUY order failure-injection should rollback funds and holdings completely", async () => {
+            const userBefore = await User.findById(userA._id);
+            const initialFunds = userBefore.funds;
+
+            // Spy and mock TransactionModel.create to throw a simulated database failure
+            const spy = jest.spyOn(TransactionModel, "create").mockImplementationOnce(() => {
+                throw new Error("Simulated database write crash during BUY transaction");
+            });
+
+            const res = await request(app)
+                .post("/api/v1/orders/newOrders")
+                .set("Cookie", userACookie)
+                .send({ name: "RELIANCE", qty: 2, price: 2112.4, mode: "BUY", orderType: "MARKET" });
+
+            // Must fail due to transaction abort
+            expect(res.statusCode).toBeGreaterThanOrEqual(400);
+
+            // 1. Verify User A funds were NOT deducted (rolled back 100%)
+            const userAfter = await User.findById(userA._id);
+            expect(userAfter.funds).toBe(initialFunds);
+
+            // 2. Verify RELIANCE holding was NOT created (rolled back 100%)
+            const holdingAfter = await HoldingModel.findOne({ userId: userA._id, name: "RELIANCE" });
+            expect(holdingAfter).toBeNull();
+
+            // 3. Verify no executed order record leaked into database
+            const orderCheck = await OrderModel.findOne({
+                userId: userA._id,
+                name: "RELIANCE",
+                status: ORDER_STATUS.EXECUTED
+            });
+            expect(orderCheck).toBeNull();
+
+            spy.mockRestore();
+        });
+
+        test("SELL order failure-injection should rollback holding quantity and funds completely", async () => {
+            const holdingBefore = await HoldingModel.findOne({ userId: userA._id, name: "TATAPOWER" });
+            expect(holdingBefore).not.toBeNull();
+            const initialQty = holdingBefore.qty;
+
+            const userBefore = await User.findById(userA._id);
+            const initialFunds = userBefore.funds;
+
+            // Spy and mock TransactionModel.create to throw a simulated failure on SELL ledger write
+            const spy = jest.spyOn(TransactionModel, "create").mockImplementationOnce(() => {
+                throw new Error("Simulated database write crash during SELL transaction");
+            });
+
+            const res = await request(app)
+                .post("/api/v1/orders/newOrders")
+                .set("Cookie", userACookie)
+                .send({ name: "TATAPOWER", qty: 2, price: 124.15, mode: "SELL", orderType: "MARKET" });
+
+            // Must fail due to transaction abort
+            expect(res.statusCode).toBeGreaterThanOrEqual(400);
+
+            // 1. Verify TATAPOWER holding quantity was NOT reduced (rolled back 100%)
+            const holdingAfter = await HoldingModel.findOne({ userId: userA._id, name: "TATAPOWER" });
+            expect(holdingAfter.qty).toBe(initialQty);
+
+            // 2. Verify User A funds were NOT credited (rolled back 100%)
+            const userAfter = await User.findById(userA._id);
+            expect(userAfter.funds).toBe(initialFunds);
+
+            spy.mockRestore();
+        });
+
+        test("Wallet deposit failure-injection should rollback funds increment completely", async () => {
+            const userBefore = await User.findById(userA._id);
+            const initialFunds = userBefore.funds;
+
+            // Spy and mock TransactionModel.create during deposit
+            const spy = jest.spyOn(TransactionModel, "create").mockImplementationOnce(() => {
+                throw new Error("Simulated database crash during Deposit ledger write");
+            });
+
+            const res = await request(app)
+                .post("/api/v1/wallet/user/funds")
+                .set("Cookie", userACookie)
+                .send({ amount: 50000, action: "ADD" });
+
+            expect(res.statusCode).toBeGreaterThanOrEqual(400);
+
+            // Verify User A funds were NOT incremented
+            const userAfter = await User.findById(userA._id);
+            expect(userAfter.funds).toBe(initialFunds);
+
+            spy.mockRestore();
         });
     });
 });
