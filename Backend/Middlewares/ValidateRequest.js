@@ -52,8 +52,8 @@ const SCHEMAS = {
         if (orderMode !== "BUY" && orderMode !== "SELL") {
             return "Order mode must be either BUY or SELL";
         }
-        if (productType && !["CNC", "MIS"].includes(productType.toString().toUpperCase())) {
-            return "Product type must be either CNC or MIS";
+        if (productType && productType.toString().toUpperCase() !== "CNC") {
+            return "Only CNC (Equity Delivery) product type is currently supported";
         }
         if (orderType && !["MARKET", "LIMIT"].includes(orderType.toString().toUpperCase())) {
             return "Order type must be either MARKET or LIMIT";

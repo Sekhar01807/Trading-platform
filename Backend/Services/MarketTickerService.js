@@ -1,6 +1,7 @@
 const YahooFinance = require("yahoo-finance2").default;
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 const jwt = require("jsonwebtoken");
+const { getTokenSecret } = require("../util/SecretToken");
 const { HoldingModel } = require("../model/HoldingModel");
 const { PositionModel } = require("../model/PositionModel");
 const { SYMBOL_MAP, INITIAL_PRICES } = require("../config/constants");
@@ -48,7 +49,7 @@ class MarketTickerService {
 
                 if (token) {
                     try {
-                        const decoded = jwt.verify(token, process.env.TOKEN_KEY);
+                        const decoded = jwt.verify(token, getTokenSecret());
                         socket.userId = decoded.id;
                         socket.isAuthenticated = true;
                     } catch (e) {

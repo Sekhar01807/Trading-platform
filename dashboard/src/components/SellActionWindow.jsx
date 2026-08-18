@@ -168,16 +168,11 @@ const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
           <div className="option-group">
             <label>Product:</label>
             <button
-              className={`tab-btn ${productType === "CNC" ? "active" : ""}`}
-              onClick={() => setProductType("CNC")}
+              type="button"
+              className="tab-btn active"
+              title="Equity Delivery (CNC) - Practice trading with permanent holdings"
             >
-              Longterm CNC
-            </button>
-            <button
-              className={`tab-btn ${productType === "MIS" ? "active" : ""}`}
-              onClick={() => setProductType("MIS")}
-            >
-              Intraday MIS
+              CNC (Delivery)
             </button>
           </div>
 

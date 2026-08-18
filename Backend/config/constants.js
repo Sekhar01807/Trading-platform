@@ -130,8 +130,7 @@ const ORDER_MODE = {
 };
 
 const PRODUCT_TYPE = {
-    CNC: "CNC", // Cash and Carry (Equity Delivery)
-    MIS: "MIS"  // Margin Intraday Square-off
+    CNC: "CNC" // Cash and Carry (Equity Delivery) - Fully implemented portfolio delivery trading
 };
 
 const ORDER_TYPE = {

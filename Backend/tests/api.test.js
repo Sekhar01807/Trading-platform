@@ -247,7 +247,7 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
     // 4. BUY Orders: Server Validation, Limit Logic & Transactions
     // ---------------------------------------------------------
     describe("4. BUY Orders (Server Validation, Limit Checks & ACID Transactions)", () => {
-        test("BUY with invalid input should be rejected by validation middleware", async () => {
+        test("BUY with invalid input or unsupported product type should be rejected", async () => {
             const resInvalidQty = await request(app)
                 .post("/api/v1/orders/newOrders")
                 .set("Cookie", userACookie)
@@ -259,6 +259,13 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
                 .set("Cookie", userACookie)
                 .send({ name: "INFY", qty: 2, price: 0, mode: "BUY" });
             expect(resInvalidPrice.statusCode).toBe(400);
+
+            const resUnsupportedProduct = await request(app)
+                .post("/api/v1/orders/newOrders")
+                .set("Cookie", userACookie)
+                .send({ name: "INFY", qty: 2, price: 1500, mode: "BUY", productType: "MIS" });
+            expect(resUnsupportedProduct.statusCode).toBe(400);
+            expect(resUnsupportedProduct.body.message).toContain("Only CNC");
         });
 
         test("BUY with INSUFFICIENT funds should be rejected and recorded as REJECTED", async () => {

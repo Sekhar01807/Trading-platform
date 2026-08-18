@@ -49,20 +49,18 @@ class WalletService {
 
         if (cleanAction === "ADD") {
             return await runInTransaction(async (session) => {
-                const sessionOpt = session ? { session } : {};
-
-                const userBefore = await User.findById(userId, null, sessionOpt);
-                if (!userBefore) {
-                    throw { statusCode: 404, message: "User not found" };
-                }
-                const balanceBefore = Number((userBefore.funds || 0).toFixed(2));
-
                 const updatedUser = await User.findByIdAndUpdate(
                     userId,
                     { $inc: { funds: numAmt } },
-                    { new: true, ...sessionOpt }
+                    { new: true, session }
                 );
+
+                if (!updatedUser) {
+                    throw { statusCode: 404, message: "User not found" };
+                }
+
                 const balanceAfter = Number(updatedUser.funds.toFixed(2));
+                const balanceBefore = Number((balanceAfter - numAmt).toFixed(2));
 
                 await TransactionModel.create(
                     [{
@@ -74,7 +72,7 @@ class WalletService {
                         status: TRANSACTION_STATUS.SUCCESS,
                         description: `Manual deposit of ₹${numAmt.toFixed(2)}`
                     }],
-                    sessionOpt
+                    { session }
                 );
 
                 logger.info("Wallet deposit completed via transaction", { userId, amount: numAmt, balanceAfter });
@@ -91,33 +89,34 @@ class WalletService {
             if (!userBefore) {
                 throw { statusCode: 404, message: "User not found" };
             }
-            const balanceBefore = Number((userBefore.funds || 0).toFixed(2));
+            const currentFunds = Number((userBefore.funds || 0).toFixed(2));
 
-            if (numAmt > balanceBefore) {
+            if (numAmt > currentFunds) {
                 throw {
                     statusCode: 400,
-                    message: `Withdrawal amount (₹${numAmt.toFixed(2)}) exceeds available cash balance (₹${balanceBefore.toFixed(2)})!`
+                    message: `Withdrawal amount (₹${numAmt.toFixed(2)}) exceeds available cash balance (₹${currentFunds.toFixed(2)})!`
                 };
             }
 
             return await runInTransaction(async (session) => {
-                const sessionOpt = session ? { session } : {};
-
                 // Concurrency-safe atomic deduction: guarantees funds >= numAmt at write time
                 const updatedUser = await User.findOneAndUpdate(
                     { _id: userId, funds: { $gte: numAmt } },
                     { $inc: { funds: -numAmt } },
-                    { new: true, ...sessionOpt }
+                    { new: true, session }
                 );
 
                 if (!updatedUser) {
+                    const userCheck = await User.findById(userId);
+                    const available = userCheck ? Number((userCheck.funds || 0).toFixed(2)) : 0;
                     throw {
                         statusCode: 400,
-                        message: "Withdrawal failed due to insufficient funds."
+                        message: `Withdrawal failed: Insufficient cash balance (Available: ₹${available.toFixed(2)}, Requested: ₹${numAmt.toFixed(2)}).`
                     };
                 }
 
                 const balanceAfter = Number(updatedUser.funds.toFixed(2));
+                const balanceBefore = Number((balanceAfter + numAmt).toFixed(2));
 
                 await TransactionModel.create(
                     [{
@@ -129,7 +128,7 @@ class WalletService {
                         status: TRANSACTION_STATUS.SUCCESS,
                         description: `Withdrawal of ₹${numAmt.toFixed(2)}`
                     }],
-                    sessionOpt
+                    { session }
                 );
 
                 logger.info("Wallet withdrawal completed via transaction", { userId, amount: numAmt, balanceAfter });
@@ -211,7 +210,16 @@ class WalletService {
         }
 
         // 1. Cryptographic HMAC-SHA256 Signature Verification
-        const secret = process.env.RAZORPAY_KEY_SECRET || "MLfOsojM55l35lIfKw4k4wZi";
+        // Never hard-code secret in production code; pull strictly from environment config
+        const secret = process.env.RAZORPAY_KEY_SECRET || (process.env.NODE_ENV === "test" ? "MLfOsojM55l35lIfKw4k4wZi" : null);
+
+        if (!secret) {
+            logger.error("Payment verification failed: RAZORPAY_KEY_SECRET environment variable is not configured.");
+            throw {
+                statusCode: 500,
+                message: "Payment gateway configuration error. Please configure RAZORPAY_KEY_SECRET."
+            };
+        }
 
         const generatedSignature = crypto
             .createHmac("sha256", secret)
@@ -288,28 +296,25 @@ class WalletService {
         // 4. ATOMIC TRANSACTION: Mark Payment SUCCESS + Increment User Funds + Write Ledger Entry
         try {
             return await runInTransaction(async (session) => {
-                const sessionOpt = session ? { session } : {};
-
-                const userBefore = await User.findById(userId, null, sessionOpt);
-                if (!userBefore) {
-                    throw { statusCode: 404, message: "User not found" };
-                }
-                const balanceBefore = Number((userBefore.funds || 0).toFixed(2));
-
                 // A. Update PaymentRecord status
                 paymentRecord.razorpay_payment_id = razorpay_payment_id;
                 paymentRecord.razorpay_signature = razorpay_signature;
                 paymentRecord.status = "SUCCESS";
-                await paymentRecord.save(sessionOpt);
+                await paymentRecord.save({ session });
 
                 // B. Credit funds to user wallet
                 const updatedUser = await User.findByIdAndUpdate(
                     userId,
                     { $inc: { funds: numAmt } },
-                    { new: true, ...sessionOpt }
+                    { new: true, session }
                 );
 
+                if (!updatedUser) {
+                    throw { statusCode: 404, message: "User not found" };
+                }
+
                 const balanceAfter = Number(updatedUser.funds.toFixed(2));
+                const balanceBefore = Number((balanceAfter - numAmt).toFixed(2));
 
                 // C. Write transaction ledger entry
                 await TransactionModel.create(
@@ -323,7 +328,7 @@ class WalletService {
                         status: TRANSACTION_STATUS.SUCCESS,
                         description: `Razorpay Deposit Verified (Order: ${razorpay_order_id})`
                     }],
-                    sessionOpt
+                    { session }
                 );
 
                 logger.info("Razorpay payment verified and credited via transaction", {

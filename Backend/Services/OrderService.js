@@ -30,9 +30,7 @@ class OrderService {
         const orderQty = Number(qty || quantity);
         const clientRequestedPrice = Number(requestedPrice || price);
         const orderMode = (mode || side || "").trim().toUpperCase();
-        const cleanProductType = Object.values(PRODUCT_TYPE).includes(productType?.toUpperCase())
-            ? productType.toUpperCase()
-            : PRODUCT_TYPE.CNC;
+        const cleanProductType = (productType || PRODUCT_TYPE.CNC).toString().trim().toUpperCase();
         const cleanOrderType = Object.values(ORDER_TYPE).includes(orderType?.toUpperCase())
             ? orderType.toUpperCase()
             : ORDER_TYPE.MARKET;
@@ -52,6 +50,13 @@ class OrderService {
 
         if (orderMode !== ORDER_MODE.BUY && orderMode !== ORDER_MODE.SELL) {
             throw { statusCode: 400, message: "Invalid order mode. Must be BUY or SELL." };
+        }
+
+        if (cleanProductType !== PRODUCT_TYPE.CNC) {
+            throw {
+                statusCode: 400,
+                message: "Only CNC (Equity Delivery) product type is supported for portfolio trading."
+            };
         }
 
         // 2. Server-Authoritative Market Pricing
@@ -100,7 +105,7 @@ class OrderService {
                         order: rejectedOrder
                     };
                 }
-                // Marketable Limit Buy: executes at current market price (or limit price)
+                // Marketable Limit Buy: executes at current market price
                 executedPrice = serverMarketPrice;
             } else {
                 // SELL Limit: seller wants to receive at least normalizedRequestedPrice
@@ -221,15 +226,13 @@ class OrderService {
             };
         }
 
-        // 2. Execute within MongoDB multi-document session transaction
+        // 2. Execute within strict MongoDB multi-document session transaction
         return await runInTransaction(async (session) => {
-            const sessionOpt = session ? { session } : {};
-
-            // A. Deduct User Balance Conditionally
+            // A. Deduct User Balance Conditionally within session
             const updatedUser = await User.findOneAndUpdate(
                 { _id: userId, funds: { $gte: totalOrderCost } },
                 { $inc: { funds: -totalOrderCost } },
-                { new: true, ...sessionOpt }
+                { new: true, session }
             );
 
             if (!updatedUser) {
@@ -239,11 +242,11 @@ class OrderService {
                 };
             }
 
-            const balanceBefore = Number((updatedUser.funds + totalOrderCost).toFixed(2));
             const balanceAfter = Number(updatedUser.funds.toFixed(2));
+            const balanceBefore = Number((balanceAfter + totalOrderCost).toFixed(2));
 
-            // B. Cost Basis (Weighted Average Price) Calculation & Holding Update
-            let holding = await HoldingModel.findOne({ userId, name }, null, sessionOpt);
+            // B. Cost Basis (Weighted Average Price) Calculation & Holding Update within session
+            let holding = await HoldingModel.findOne({ userId, name }, null, { session });
 
             if (holding) {
                 const totalQty = holding.qty + qty;
@@ -252,7 +255,7 @@ class OrderService {
                 holding.avg = Number((totalCostBasis / totalQty).toFixed(2));
                 holding.price = executedPrice;
                 holding.updatedAt = new Date();
-                await holding.save(sessionOpt);
+                await holding.save({ session });
             } else {
                 const newHoldings = await HoldingModel.create(
                     [{
@@ -265,12 +268,12 @@ class OrderService {
                         day: "+0.00%",
                         isLoss: false
                     }],
-                    sessionOpt
+                    { session }
                 );
                 holding = Array.isArray(newHoldings) ? newHoldings[0] : newHoldings;
             }
 
-            // C. Create executed order record
+            // C. Create executed order record within session
             const newOrders = await OrderModel.create(
                 [{
                     userId,
@@ -289,11 +292,11 @@ class OrderService {
                     status: ORDER_STATUS.EXECUTED,
                     totalCost: totalOrderCost
                 }],
-                sessionOpt
+                { session }
             );
             const executedOrder = Array.isArray(newOrders) ? newOrders[0] : newOrders;
 
-            // D. Record wallet ledger entry
+            // D. Record wallet ledger entry within session
             await TransactionModel.create(
                 [{
                     userId,
@@ -305,7 +308,7 @@ class OrderService {
                     referenceId: executedOrder._id.toString(),
                     description: `Bought ${qty} share(s) of ${name} @ ₹${executedPrice.toFixed(2)}`
                 }],
-                sessionOpt
+                { session }
             );
 
             logger.info("BUY Order Executed via Transaction", {
@@ -377,15 +380,13 @@ class OrderService {
             };
         }
 
-        // 2. Execute within MongoDB multi-document session transaction
+        // 2. Execute within strict MongoDB multi-document session transaction
         return await runInTransaction(async (session) => {
-            const sessionOpt = session ? { session } : {};
-
-            // A. Deduct Holding Quantity Conditionally
+            // A. Deduct Holding Quantity Conditionally within session
             const updatedHolding = await HoldingModel.findOneAndUpdate(
                 { userId, name, qty: { $gte: qty } },
                 { $inc: { qty: -qty } },
-                { new: true, ...sessionOpt }
+                { new: true, session }
             );
 
             if (!updatedHolding) {
@@ -395,23 +396,26 @@ class OrderService {
                 };
             }
 
-            // If all shares sold, remove holding entry
+            // If all shares sold, remove holding entry within session
             if (updatedHolding.qty === 0) {
-                await HoldingModel.deleteOne({ _id: updatedHolding._id }, sessionOpt);
+                await HoldingModel.deleteOne({ _id: updatedHolding._id }, { session });
             }
 
-            // B. Credit Sale Proceeds to User Balance
-            const userBefore = await User.findById(userId, null, sessionOpt);
-            const balanceBefore = userBefore ? Number((userBefore.funds || 0).toFixed(2)) : 0;
-
+            // B. Credit Sale Proceeds to User Balance within session
             const updatedUser = await User.findByIdAndUpdate(
                 userId,
                 { $inc: { funds: totalSaleProceeds } },
-                { new: true, ...sessionOpt }
+                { new: true, session }
             );
-            const balanceAfter = updatedUser ? Number(updatedUser.funds.toFixed(2)) : Number((balanceBefore + totalSaleProceeds).toFixed(2));
 
-            // C. Create executed order record
+            if (!updatedUser) {
+                throw { statusCode: 404, message: "User not found" };
+            }
+
+            const balanceAfter = Number(updatedUser.funds.toFixed(2));
+            const balanceBefore = Number((balanceAfter - totalSaleProceeds).toFixed(2));
+
+            // C. Create executed order record within session
             const newOrders = await OrderModel.create(
                 [{
                     userId,
@@ -430,11 +434,11 @@ class OrderService {
                     status: ORDER_STATUS.EXECUTED,
                     totalCost: totalSaleProceeds
                 }],
-                sessionOpt
+                { session }
             );
             const executedOrder = Array.isArray(newOrders) ? newOrders[0] : newOrders;
 
-            // D. Record wallet ledger entry
+            // D. Record wallet ledger entry within session
             await TransactionModel.create(
                 [{
                     userId,
@@ -446,7 +450,7 @@ class OrderService {
                     referenceId: executedOrder._id.toString(),
                     description: `Sold ${qty} share(s) of ${name} @ ₹${executedPrice.toFixed(2)}`
                 }],
-                sessionOpt
+                { session }
             );
 
             logger.info("SELL Order Executed via Transaction", {
