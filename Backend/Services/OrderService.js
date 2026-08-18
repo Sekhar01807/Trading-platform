@@ -3,7 +3,7 @@ const { OrderModel } = require("../model/OrderModel");
 const { HoldingModel } = require("../model/HoldingModel");
 const User = require("../model/UserModel");
 const { TransactionModel } = require("../model/TransactionModel");
-const { ORDER_STATUS, ORDER_MODE, PRODUCT_TYPE, ORDER_TYPE, TRANSACTION_TYPE, TRANSACTION_STATUS, INITIAL_PRICES } = require("../config/constants");
+const { ORDER_STATUS, ORDER_MODE, PRODUCT_TYPE, ORDER_TYPE, TRANSACTION_TYPE, TRANSACTION_STATUS, INITIAL_PRICES, TRADABLE_SYMBOLS } = require("../config/constants");
 const MarketTickerService = require("./MarketTickerService");
 const { runInTransaction } = require("../util/transactionHelper");
 const logger = require("../util/logger");
@@ -40,6 +40,13 @@ class OrderService {
             throw { statusCode: 400, message: "Valid stock symbol is required." };
         }
 
+        if (!TRADABLE_SYMBOLS.includes(stockSymbol)) {
+            throw {
+                statusCode: 400,
+                message: `Instrument '${stockSymbol}' is not a supported tradable stock on PulseTrade.`
+            };
+        }
+
         if (isNaN(orderQty) || orderQty <= 0 || !Number.isInteger(orderQty)) {
             throw { statusCode: 400, message: "Order quantity must be a positive whole integer." };
         }
@@ -59,10 +66,18 @@ class OrderService {
             };
         }
 
-        // 2. Server-Authoritative Market Pricing
+        // 2. Server-Authoritative Market Pricing (Strictly server-determined, NO client fallback)
         const livePrices = MarketTickerService.getLivePrices();
         const liveMarketPrice = livePrices[stockSymbol] || INITIAL_PRICES[stockSymbol];
-        const serverMarketPrice = Number((liveMarketPrice || clientRequestedPrice).toFixed(2));
+
+        if (!liveMarketPrice || isNaN(liveMarketPrice) || liveMarketPrice <= 0) {
+            throw {
+                statusCode: 400,
+                message: `Live market pricing is currently unavailable for '${stockSymbol}'. Order rejected.`
+            };
+        }
+
+        const serverMarketPrice = Number(liveMarketPrice.toFixed(2));
         const normalizedRequestedPrice = Number(clientRequestedPrice.toFixed(2));
 
         let executedPrice = serverMarketPrice;

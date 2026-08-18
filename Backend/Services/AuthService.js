@@ -51,10 +51,11 @@ class AuthService {
             email: sanitizedEmail,
             password,
             username: sanitizedUsername,
+            tokenVersion: 0,
             createdAt: createdAt || new Date()
         });
 
-        const token = createSecretToken(user._id);
+        const token = createSecretToken(user._id, user.tokenVersion || 0);
 
         logger.info("User registered successfully", { userId: user._id, email: sanitizedEmail });
 
@@ -92,7 +93,7 @@ class AuthService {
             throw { statusCode: 401, message: "Incorrect email address or password" };
         }
 
-        const token = createSecretToken(user._id);
+        const token = createSecretToken(user._id, user.tokenVersion || 0);
         logger.info("User logged in successfully", { userId: user._id, email: sanitizedEmail });
 
         return {
@@ -103,6 +104,28 @@ class AuthService {
                 email: user.email,
                 funds: user.funds || 0
             }
+        };
+    }
+
+    /**
+     * Revokes all active JWT sessions across all devices for a user.
+     */
+    static async signOutAllDevices(userId) {
+        const user = await User.findByIdAndUpdate(
+            userId,
+            { $inc: { tokenVersion: 1 } },
+            { new: true }
+        );
+
+        if (!user) {
+            throw { statusCode: 404, message: "User not found" };
+        }
+
+        logger.info("All user sessions revoked via tokenVersion increment", { userId, newVersion: user.tokenVersion });
+
+        return {
+            status: true,
+            message: "Successfully signed out from all devices."
         };
     }
 

@@ -47,6 +47,17 @@ const authenticateUser = async (req, res, next) => {
             });
         }
 
+        // Token Version Revocation Check
+        const tokenVersion = decoded.tokenVersion !== undefined ? decoded.tokenVersion : 0;
+        const currentVersion = user.tokenVersion !== undefined ? user.tokenVersion : 0;
+
+        if (tokenVersion !== currentVersion) {
+            return res.status(401).json({
+                status: false,
+                message: "Session has been revoked or expired. Please log in again."
+            });
+        }
+
         req.user = user;
         req.userId = user._id;
         next();
@@ -71,6 +82,17 @@ const userVerification = async (req, res) => {
 
         if (!user) {
             return res.status(401).json({ status: false, message: "User not found" });
+        }
+
+        // Token Version Revocation Check
+        const tokenVersion = decoded.tokenVersion !== undefined ? decoded.tokenVersion : 0;
+        const currentVersion = user.tokenVersion !== undefined ? user.tokenVersion : 0;
+
+        if (tokenVersion !== currentVersion) {
+            return res.status(401).json({
+                status: false,
+                message: "Session has been revoked. Please log in again."
+            });
         }
 
         return res.status(200).json({ 

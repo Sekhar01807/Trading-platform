@@ -26,9 +26,22 @@ const getHealthStatus = async (req, res) => {
         dbStatus = "error";
     }
 
+    const isHealthy = dbStatus === "connected";
+
+    if (process.env.NODE_ENV === "production") {
+        return res.status(isHealthy ? 200 : 503).json({
+            status: isHealthy ? "healthy" : "degraded",
+            service: "pulsetrade-backend-api",
+            version: "1.0.0",
+            timestamp: new Date().toISOString(),
+            database: {
+                status: dbStatus
+            }
+        });
+    }
+
     const memoryUsage = process.memoryUsage();
     const uptimeSeconds = process.uptime();
-    const isHealthy = dbStatus === "connected";
 
     res.status(isHealthy ? 200 : 503).json({
         status: isHealthy ? "healthy" : "degraded",

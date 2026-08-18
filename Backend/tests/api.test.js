@@ -189,6 +189,38 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
                 .set("Cookie", "token=invalid.tampered.token");
             expect(res.statusCode).toBe(401);
         });
+
+        test("POST /logout-all should revoke all existing JWT sessions via tokenVersion increment", async () => {
+            // Save current cookie
+            const activeCookie = userBCookie;
+
+            // Verify cookie currently works
+            const checkRes1 = await request(app)
+                .get("/api/v1/orders/allOrders")
+                .set("Cookie", activeCookie);
+            expect(checkRes1.statusCode).toBe(200);
+
+            // Call logout-all
+            const logoutAllRes = await request(app)
+                .post("/api/v1/auth/logout-all")
+                .set("Cookie", activeCookie);
+            expect(logoutAllRes.statusCode).toBe(200);
+            expect(logoutAllRes.body.message).toContain("Successfully signed out from all devices");
+
+            // Attempt to use the old JWT token - must be rejected with 401
+            const checkRes2 = await request(app)
+                .get("/api/v1/orders/allOrders")
+                .set("Cookie", activeCookie);
+            expect(checkRes2.statusCode).toBe(401);
+            expect(checkRes2.body.message).toContain("revoked");
+
+            // Re-login User B for subsequent tests
+            const reLoginRes = await request(app)
+                .post("/api/v1/auth/login")
+                .send({ email: emailB, password: rawPassword });
+            const setCookie = reLoginRes.headers["set-cookie"];
+            userBCookie = Array.isArray(setCookie) ? setCookie[0].split(";")[0] : setCookie.split(";")[0];
+        });
     });
 
     // ---------------------------------------------------------
@@ -268,6 +300,13 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
                 .send({ name: "INFY", qty: 2, price: 1500, mode: "BUY", productType: "MIS" });
             expect(resUnsupportedProduct.statusCode).toBe(400);
             expect(resUnsupportedProduct.body.message).toContain("Only CNC");
+
+            const resUnsupportedSymbol = await request(app)
+                .post("/api/v1/orders/newOrders")
+                .set("Cookie", userACookie)
+                .send({ name: "FAKE_INSTRUMENT_999", qty: 2, price: 100, mode: "BUY" });
+            expect(resUnsupportedSymbol.statusCode).toBe(400);
+            expect(resUnsupportedSymbol.body.message).toContain("not a supported tradable stock");
         });
 
         test("BUY with INSUFFICIENT funds should be rejected and recorded as REJECTED", async () => {

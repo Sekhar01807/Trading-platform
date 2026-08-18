@@ -15,9 +15,9 @@ const getTokenSecret = () => {
     return secret;
 };
 
-module.exports.createSecretToken = (id) => {
+module.exports.createSecretToken = (id, tokenVersion = 0) => {
     const secret = getTokenSecret();
-    return jwt.sign({ id }, secret, {
+    return jwt.sign({ id, tokenVersion }, secret, {
         expiresIn: 3 * 24 * 60 * 60, // 3 days
     });
 };

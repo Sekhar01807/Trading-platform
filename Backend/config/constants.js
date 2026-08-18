@@ -151,9 +151,13 @@ const TRANSACTION_STATUS = {
     PENDING: "PENDING"
 };
 
+// Explicit tradable equity symbols (excluding market indices like NIFTY 50 and SENSEX)
+const TRADABLE_SYMBOLS = Object.keys(SYMBOL_MAP).filter(sym => !["NIFTY 50", "SENSEX"].includes(sym));
+
 module.exports = {
     SYMBOL_MAP,
     INITIAL_PRICES,
+    TRADABLE_SYMBOLS,
     ORDER_STATUS,
     ORDER_MODE,
     PRODUCT_TYPE,

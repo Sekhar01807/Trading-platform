@@ -22,6 +22,13 @@ const getAllPositions = async (req, res, next) => {
 
 const seedDemoData = async (req, res, next) => {
     try {
+        if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "true") {
+            return res.status(403).json({
+                success: false,
+                message: "Demo portfolio seeding is disabled in production mode."
+            });
+        }
+
         const userId = req.userId;
         const result = await HoldingService.seedDemoData(userId);
 
@@ -38,6 +45,13 @@ const seedDemoData = async (req, res, next) => {
 
 const resetPortfolio = async (req, res, next) => {
     try {
+        if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "true") {
+            return res.status(403).json({
+                success: false,
+                message: "Portfolio reset is disabled in production mode."
+            });
+        }
+
         const userId = req.userId;
         const result = await HoldingService.resetPortfolio(userId);
 

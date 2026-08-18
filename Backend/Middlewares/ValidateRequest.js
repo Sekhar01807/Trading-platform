@@ -2,6 +2,8 @@
  * Declarative Request Validation Middleware
  */
 
+const { TRADABLE_SYMBOLS } = require("../config/constants");
+
 const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return typeof email === "string" && emailRegex.test(email.trim());
@@ -35,12 +37,15 @@ const SCHEMAS = {
 
     placeOrder: (body) => {
         const { name, symbol, qty, quantity, price, requestedPrice, mode, side, productType, orderType } = body || {};
-        const stockSymbol = name || symbol;
+        const stockSymbol = (name || symbol || "").toString().trim().toUpperCase();
         const numQty = Number(qty || quantity);
         const numPrice = Number(price || requestedPrice);
 
-        if (!stockSymbol || typeof stockSymbol !== "string" || stockSymbol.trim().length === 0) {
+        if (!stockSymbol || stockSymbol.length === 0) {
             return "Valid stock symbol is required";
+        }
+        if (!TRADABLE_SYMBOLS.includes(stockSymbol)) {
+            return `Instrument '${stockSymbol}' is not a supported tradable stock`;
         }
         if (isNaN(numQty) || numQty <= 0 || !Number.isInteger(numQty)) {
             return "Quantity must be a positive whole number";

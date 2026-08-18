@@ -157,6 +157,15 @@ class WalletService {
         const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
         const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
 
+        // In production, missing payment configuration must strictly fail closed
+        if (process.env.NODE_ENV === "production" && (!razorpayKeyId || !razorpayKeySecret)) {
+            logger.error("Razorpay order creation failed: Missing RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET in production.");
+            throw {
+                statusCode: 500,
+                message: "Payment gateway configuration error: Razorpay keys are not configured in production."
+            };
+        }
+
         let orderId = "";
         let amountInPaise = Math.round(numAmt * 100);
 
@@ -171,7 +180,7 @@ class WalletService {
             });
             orderId = order.id;
         } else {
-            // Simulated test order ID if test keys not set
+            // Simulated development/test order ID only in non-production environments
             orderId = `order_sim_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
         }
 

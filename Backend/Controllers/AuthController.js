@@ -74,6 +74,38 @@ const Logout = (req, res) => {
     });
 };
 
+const LogoutAll = async (req, res, next) => {
+    try {
+        const userId = req.userId || (req.user ? req.user._id : null);
+        if (!userId) {
+            return res.status(401).json({ message: "Unauthorized access", success: false });
+        }
+
+        await AuthService.signOutAllDevices(userId);
+
+        const isProduction = process.env.NODE_ENV === "production";
+        res.clearCookie("token", {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
+            path: "/"
+        });
+
+        return res.status(200).json({
+            message: "Successfully signed out from all devices",
+            success: true
+        });
+    } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({
+                message: error.message,
+                success: false
+            });
+        }
+        next(error);
+    }
+};
+
 const UpdateProfile = async (req, res, next) => {
     try {
         const userId = req.userId || (req.user ? req.user._id : null);
@@ -104,5 +136,6 @@ module.exports = {
     Signup,
     Login,
     Logout,
+    LogoutAll,
     UpdateProfile
 };

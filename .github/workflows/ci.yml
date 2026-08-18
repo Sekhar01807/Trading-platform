@@ -16,24 +16,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 18.x
+      - name: Set up Node.js 20.x
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: 'npm'
           cache-dependency-path: 'Backend/package-lock.json'
 
       - name: Install Backend dependencies
         run: |
           cd Backend
-          npm ci || npm install
+          npm ci
 
       - name: Run Backend Integration Test Suite
         env:
-          ATLASDB_URL: ${{ secrets.ATLASDB_URL || 'mongodb+srv://pssekhar199189_db_user:r6y5Gsh6EP104psy@cluster0.b872qiu.mongodb.net/zerodha?appName=Cluster0' }}
-          TOKEN_KEY: ${{ secrets.TOKEN_KEY || 'Zerodha_Clone_Secret_Key_123!@#' }}
-          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID || 'rzp_test_TM59RmCnldP02C' }}
-          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET || 'MLfOsojM55l35lIfKw4k4wZi' }}
+          ATLASDB_URL: ${{ secrets.ATLASDB_URL }}
+          TOKEN_KEY: ${{ secrets.TOKEN_KEY }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
           NODE_ENV: test
         run: |
           cd Backend
@@ -48,17 +48,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 18.x
+      - name: Set up Node.js 20.x
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: 'npm'
           cache-dependency-path: 'dashboard/package-lock.json'
 
       - name: Install Dashboard dependencies
         run: |
           cd dashboard
-          npm ci || npm install
+          npm ci
 
       - name: Build Dashboard Production Bundle
         run: |
@@ -74,17 +74,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 18.x
+      - name: Set up Node.js 20.x
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: 'npm'
           cache-dependency-path: 'frontend/package-lock.json'
 
       - name: Install Frontend dependencies
         run: |
           cd frontend
-          npm ci || npm install
+          npm ci
 
       - name: Build Frontend Production Bundle
         run: |

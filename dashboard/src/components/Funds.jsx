@@ -38,8 +38,11 @@ const Funds = () => {
                 const orderData = Array.isArray(ordersRes.value.data) ? ordersRes.value.data : ordersRes.value.data.data || [];
                 setOrders(orderData);
             }
-            if (txRes.status === "fulfilled" && txRes.value.data && txRes.value.data.transactions) {
-                setTransactions(txRes.value.data.transactions);
+            if (txRes.status === "fulfilled" && txRes.value.data) {
+                const txData = Array.isArray(txRes.value.data)
+                    ? txRes.value.data
+                    : (txRes.value.data.data || txRes.value.data.transactions || []);
+                setTransactions(txData);
             }
             setError(null);
         } catch (err) {
