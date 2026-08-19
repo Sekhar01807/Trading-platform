@@ -155,11 +155,14 @@ Experience PulseTrade with instant registration and demo portfolio seeding:
 - **Atomic Credit & Ledger**: Wallet balance increments and ledger write occur within a single database transaction, preventing balance/ledger divergence.
 - **Idempotency**: Prevents double-crediting on network retries or replay attacks.
 
-### 5. Multi-Device Session Invalidation & Token Revocation
+### 5. Multi-Device Session Invalidation & Rate Limiting Architecture
 - **Token Versioning**: `UserModel` maintains `tokenVersion`, embedded in signed JWT payloads.
 - **Session Revocation**: Calling `POST /api/v1/auth/logout-all` increments `tokenVersion`, instantly invalidating all existing JWT sessions across all devices.
 - **Zero-Token Exposure**: Strict `HttpOnly: true` cookies with zero JWT tokens exposed in JSON payloads.
-- **Brute-Force Rate Limiting**: Dedicated auth rate limiter (10 attempts / 15 mins) plus global, order, and wallet rate limiters.
+- **Brute-Force & Flood Protection**: Dedicated sliding-window rate limiters for auth (10 req / 15m), orders (30 req / 1m), wallet operations (15 req / 1m), and global API (300 req / 15m).
+- **Process-Local Rate Limiter Design & Scalability Note**:
+  > [!NOTE]
+  > Rate limiting is currently implemented in-memory using an efficient process-local sliding-window `Map`. This provides zero-dependency, ultra-low-latency protection against brute-force and request bursts for single-instance or standalone container deployments. In a horizontally-scaled multi-instance cluster, a shared distributed store (such as Redis or Upstash using sliding logs or token buckets) would be integrated to synchronize limits across replica pods.
 - **Generic Auth Errors**: Both unknown users and bad passwords return `"Incorrect email address or password"` to prevent user enumeration.
 
 ### 6. Clean Architectural Separation (GAP 8)
@@ -307,27 +310,44 @@ Access the interactive **Swagger UI** documentation at **[`http://localhost:3000
 
 ## 🧪 Test Coverage & Verification
 
-PulseTrade features an extensive integration test suite with Jest and Supertest running against MongoDB:
+PulseTrade features a dual-layer automated test suite (API integration + Service-level unit/transaction rollback tests) with Jest and Supertest running against MongoDB:
 
 ```bash
 cd Backend
 npm test
 ```
 
-### Integration Test Breakdown
+### Automated Test Breakdown
 
-| Test Category | Critical Business Logic Verified | Status |
+| Test Suite | Critical Business Logic & Invariants Verified | Status |
 |---|---|:---:|
-| **Health & Observability** | Health endpoint (`/health`), OpenAPI JSON, Swagger UI, `X-Request-Id` correlation tracking | ✅ Passed |
-| **Authentication & Security** | Signup validation, duplicate email rejection, HttpOnly cookies, zero-token JSON, generic login errors, `tokenVersion` session revocation | ✅ Passed |
-| **BUY Order ACID Engine** | Multi-document session transactions, tradable symbol validation, insufficient funds rejection (`status: REJECTED`), unfillable LIMIT BUY rejection, fillable LIMIT BUY execution, weighted cost basis math | ✅ Passed |
-| **SELL Order ACID Engine** | Multi-document session transactions, selling unowned stock rejection, overselling rejection, unfillable LIMIT SELL rejection, proceeds crediting, holding removal on 0 qty | ✅ Passed |
-| **Portfolio Math** | Multi-purchase weighted average price calculation, partial sell cost basis preservation | ✅ Passed |
-| **User Isolation** | User A cannot see User B's orders, holdings, positions, funds, or wallet transactions; cross-user payment verification blocked | ✅ Passed |
-| **Pagination & Filtering** | Pagination metadata (`page`, `limit`, `totalPages`), mode filter (`BUY`/`SELL`), symbol search, price/date sorting | ✅ Passed |
-| **Razorpay Gateway & Ledger** | Reject missing pending records, amount mismatch rejection, signature forgery rejection, atomic credit + ledger, idempotency / replay prevention | ✅ Passed |
-| **Wallet Concurrency & Withdraw** | Atomic ADD/WITHDRAW session transactions, overdrawing prevention, non-negative balance guarantees | ✅ Passed |
-| **Backward Compatibility** | Legacy root routes (`/allHoldings`, `/user/funds`, `/allOrders`, `/newOrders`) | ✅ Passed |
+| **Service-Level: BUY & Limit Logic** | Input validation (negative/fractional qty, invalid symbol), insufficient balance early rejection with `REJECTED` audit, fillable vs unfillable LIMIT orders, weighted cost basis (`avg`) calculations | ✅ Passed |
+| **Service-Level: SELL & Portfolio** | Unowned stock rejection, overselling rejection, unfillable LIMIT SELL rejection, partial SELL cost-basis preservation, complete SELL holding deletion (qty=0) | ✅ Passed |
+| **Service-Level: ACID Transaction Rollbacks** | Simulated database crashes during holding updates, user balance deduction, order logging, and ledger creation; verifies 100% atomic rollbacks without state leaks | ✅ Passed |
+| **Service-Level: Payment & Security** | Constant-time HMAC-SHA256 signature verification (`timingSafeEqual`), forged signature rejection, amount mismatch checks, cross-user verification blocking, idempotent replays | ✅ Passed |
+| **API: Health & Observability** | Health endpoint (`/health`), OpenAPI JSON, Swagger UI, `X-Request-Id` correlation tracking | ✅ Passed |
+| **API: Authentication & Security** | Signup validation, duplicate email rejection, HttpOnly cookies, zero-token JSON, generic login errors, `tokenVersion` multi-device session revocation | ✅ Passed |
+| **API: User Isolation** | User A cannot see or mutate User B's orders, holdings, positions, funds, or wallet transactions | ✅ Passed |
+| **API: Pagination & Filtering** | Pagination metadata (`page`, `limit`, `totalPages`), mode filter (`BUY`/`SELL`), symbol search, price/date sorting | ✅ Passed |
+| **API: Backward Compatibility** | Legacy root routes (`/allHoldings`, `/user/funds`, `/allOrders`, `/newOrders`) | ✅ Passed |
+
+---
+
+## 🐳 Production Docker Deployment
+
+PulseTrade includes a production-hardened multi-stage Docker containerization setup:
+
+- **Backend**: Lightweight Node 20 LTS runtime installing only production dependencies (`npm ci --omit=dev`), executing under a non-root user (`USER node`).
+- **Dashboard & Frontend**: Multi-stage builds compiling static production bundles via Vite (`npm run build`), served through high-performance `nginx:alpine` containers with SPA routing fallbacks, gzip compression, and caching headers.
+
+### Start with Docker Compose:
+```bash
+docker-compose up --build -d
+```
+
+- **Backend API**: `http://localhost:3000`
+- **Dashboard Terminal**: `http://localhost:5173`
+- **Marketing Frontend**: `http://localhost:5174`
 
 ---
 
@@ -357,7 +377,7 @@ FRONTEND_URL=http://localhost:5174
 DASHBOARD_URL=http://localhost:5173
 ```
 
-### 4. Run Services
+### 4. Run Services Locally
 
 #### Start Backend API & WebSocket Server:
 ```bash

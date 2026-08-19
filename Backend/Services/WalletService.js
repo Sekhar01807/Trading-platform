@@ -235,7 +235,14 @@ class WalletService {
             .update(`${razorpay_order_id}|${razorpay_payment_id}`)
             .digest("hex");
 
-        if (generatedSignature !== razorpay_signature) {
+        const expectedSigBuf = Buffer.from(generatedSignature, "utf8");
+        const clientSigBuf = Buffer.from(razorpay_signature || "", "utf8");
+
+        const isSignatureValid =
+            expectedSigBuf.length === clientSigBuf.length &&
+            crypto.timingSafeEqual(expectedSigBuf, clientSigBuf);
+
+        if (!isSignatureValid) {
             logger.warn("Payment signature verification failed", { userId, razorpay_order_id, razorpay_payment_id });
             throw {
                 statusCode: 400,
