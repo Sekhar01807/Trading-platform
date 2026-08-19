@@ -2,10 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import axios from "axios";
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { LANDING_URL, API_URL } from "../config";
+
 
 const Menu = ({ user, onUsernameUpdate }) => {
     const location = useLocation();
@@ -181,12 +183,20 @@ const Menu = ({ user, onUsernameUpdate }) => {
                                 >
                                     <PersonOutlineIcon fontSize="small" style={{ color: "#3B82F6" }} /> My Profile
                                 </Link>
+                                <Link 
+                                    to="/settings" 
+                                    onClick={() => setIsProfileDropdownOpen(false)}
+                                    style={{ textDecoration: "none", padding: "10px 16px", display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", color: "#0F172A", fontSize: "13px", fontWeight: "600" }} 
+                                >
+                                    <SettingsOutlinedIcon fontSize="small" style={{ color: "#6366F1" }} /> Settings & Preferences
+                                </Link>
                                 <div 
                                     style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", color: "#0F172A", fontSize: "13px", fontWeight: "500" }} 
                                     onClick={() => window.location.reload()}
                                 >
                                     <RefreshIcon fontSize="small" style={{ color: "#64748B" }} /> Refresh Market Quotes
                                 </div>
+
                                 <div 
                                     style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", color: "#EF4444", fontSize: "13px", fontWeight: "600", borderTop: "1px solid #E2E8F0", marginTop: "4px" }} 
                                     onClick={handleLogout}

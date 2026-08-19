@@ -1,4 +1,9 @@
 const User = require("../model/UserModel");
+const { OrderModel } = require("../model/OrderModel");
+const { HoldingModel } = require("../model/HoldingModel");
+const { PositionModel } = require("../model/PositionModel");
+const { TransactionModel } = require("../model/TransactionModel");
+const { PaymentRecordModel } = require("../model/PaymentRecordModel");
 const { createSecretToken } = require("../util/SecretToken");
 const bcrypt = require("bcryptjs");
 const logger = require("../util/logger");
@@ -197,6 +202,83 @@ class AuthService {
             bio: user.bio
         };
     }
+
+    /**
+     * Changes user password after verifying current password.
+     */
+    static async changePassword(userId, { currentPassword, newPassword }) {
+        if (!currentPassword || typeof currentPassword !== "string") {
+            throw { statusCode: 400, message: "Current password is required" };
+        }
+        if (!newPassword || typeof newPassword !== "string" || newPassword.length < 8) {
+            throw { statusCode: 400, message: "New password must be at least 8 characters long" };
+        }
+        if (newPassword.length > 128) {
+            throw { statusCode: 400, message: "Password must not exceed 128 characters" };
+        }
+        if (!isStrongPassword(newPassword)) {
+            throw { statusCode: 400, message: "New password must contain both letters and numbers or symbols" };
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            throw { statusCode: 404, message: "User not found" };
+        }
+
+        const auth = await bcrypt.compare(currentPassword, user.password);
+        if (!auth) {
+            throw { statusCode: 400, message: "Incorrect current password" };
+        }
+
+        user.password = newPassword;
+        user.tokenVersion = (user.tokenVersion || 0) + 1; // Revoke old sessions
+        await user.save();
+
+        const newToken = createSecretToken(user._id, user.tokenVersion);
+        logger.info("User password changed successfully", { userId: user._id });
+
+        return {
+            token: newToken,
+            message: "Password changed successfully."
+        };
+    }
+
+    /**
+     * Permanently deletes account and cascading trading data.
+     */
+    static async deleteAccount(userId, { password }) {
+        if (!password || typeof password !== "string") {
+            throw { statusCode: 400, message: "Password is required to confirm account deletion" };
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            throw { statusCode: 404, message: "User account not found" };
+        }
+
+        const auth = await bcrypt.compare(password, user.password);
+        if (!auth) {
+            throw { statusCode: 400, message: "Incorrect password. Account deletion aborted." };
+        }
+
+        // Clean up all user associated data
+        await Promise.all([
+            OrderModel.deleteMany({ userId }),
+            HoldingModel.deleteMany({ userId }),
+            PositionModel.deleteMany({ userId }),
+            TransactionModel.deleteMany({ userId }),
+            PaymentRecordModel.deleteMany({ userId }),
+            User.findByIdAndDelete(userId)
+        ]);
+
+        logger.warn("User account permanently deleted with all trading data", { userId });
+
+        return {
+            status: true,
+            message: "Account and associated trading data have been permanently deleted."
+        };
+    }
 }
 
 module.exports = AuthService;
+

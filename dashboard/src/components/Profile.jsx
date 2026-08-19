@@ -19,6 +19,12 @@ import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import SecurityIcon from "@mui/icons-material/Security";
+import SettingsIcon from "@mui/icons-material/Settings";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import TrendingDownIcon from "@mui/icons-material/TrendingDown";
+import HistoryIcon from "@mui/icons-material/History";
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
 
 const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
     const [profilePic, setProfilePic] = useState(null);
@@ -34,6 +40,7 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
 
     const [holdings, setHoldings] = useState([]);
     const [orders, setOrders] = useState([]);
+    const [transactions, setTransactions] = useState([]);
 
     // Wallet Funds
     const [totalAddedFunds, setTotalAddedFunds] = useState(0);
@@ -43,6 +50,14 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
             .then(res => {
                 if (res.data && res.data.totalAddedFunds !== undefined) {
                     setTotalAddedFunds(res.data.totalAddedFunds);
+                }
+            })
+            .catch(() => {});
+
+        axios.get(`${API_URL}/user/transactions`, { withCredentials: true })
+            .then(res => {
+                if (res.data && res.data.transactions) {
+                    setTransactions(res.data.transactions);
                 }
             })
             .catch(() => {});
@@ -71,11 +86,11 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
     // Fetch user's real holdings and orders from backend
     useEffect(() => {
         axios.get(`${API_URL}/allHoldings`, { withCredentials: true })
-            .then(res => setHoldings(res.data))
+            .then(res => setHoldings(res.data || []))
             .catch(() => {});
 
         axios.get(`${API_URL}/allOrders`, { withCredentials: true })
-            .then(res => setOrders(res.data))
+            .then(res => setOrders(res.data || []))
             .catch(() => {});
     }, []);
 
@@ -136,27 +151,55 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
         : "Recently";
 
     // User's Real Portfolio calculations
-    const totalSpentOnStocks = holdings.reduce((sum, h) => sum + (h.qty * h.avg), 0);
-    const currentPortfolioValue = holdings.reduce((sum, h) => sum + (h.qty * (h.price || h.avg)), 0);
+    const totalSpentOnStocks = holdings.reduce((sum, h) => sum + ((h.qty || 0) * (h.avg || 0)), 0);
+    const currentPortfolioValue = holdings.reduce((sum, h) => sum + ((h.qty || 0) * (h.price || h.avg || 0)), 0);
     const totalPnl = currentPortfolioValue - totalSpentOnStocks;
     const isProfit = totalPnl >= 0;
+    const pnlPercent = totalSpentOnStocks > 0 ? ((totalPnl / totalSpentOnStocks) * 100).toFixed(2) : "0.00";
     const availableMargin = Math.max(0, totalAddedFunds - totalSpentOnStocks);
+    const totalNetWorth = availableMargin + currentPortfolioValue;
+
+    // Recent orders sorted descending
+    const recentOrders = [...orders]
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(0, 4);
 
     return (
-        <div style={{ padding: "30px 20px", maxWidth: "940px", margin: "0 auto", color: "#0F172A", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+        <div style={{ padding: "30px 20px", maxWidth: "980px", margin: "0 auto", color: "#0F172A", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
             
             {/* Header & Main Control Bar */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
                 <div>
-                    <h2 style={{ margin: "0 0 4px 0", fontWeight: "800", fontSize: "1.75rem", color: "#0F172A" }}>
-                        My Profile Dashboard
+                    <h2 style={{ margin: "0 0 4px 0", fontWeight: "800", fontSize: "1.75rem", color: "#0F172A", letterSpacing: "-0.5px" }}>
+                        My Profile
                     </h2>
                     <span style={{ color: "#64748B", fontSize: "0.9rem" }}>
-                        Manage your account credentials, contact info, and trading workspace details.
+                        Manage your account credentials, view portfolio net worth, and monitor trading activity.
                     </span>
                 </div>
 
-                <div>
+                <div style={{ display: "flex", gap: "10px" }}>
+                    <Link to="/settings" style={{ textDecoration: "none" }}>
+                        <button
+                            style={{
+                                background: "#FFFFFF",
+                                color: "#0F172A",
+                                border: "1px solid #CBD5E1",
+                                padding: "10px 18px",
+                                borderRadius: "10px",
+                                fontWeight: "600",
+                                fontSize: "0.9rem",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                transition: "all 0.2s"
+                            }}
+                        >
+                            <SettingsIcon style={{ fontSize: "1.05rem", color: "#64748B" }} /> Settings
+                        </button>
+                    </Link>
+
                     {!isEditing ? (
                         <button
                             onClick={() => setIsEditing(true)}
@@ -176,7 +219,7 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
                                 transition: "all 0.2s"
                             }}
                         >
-                            <EditIcon style={{ fontSize: "1rem" }} /> Edit Entire Profile
+                            <EditIcon style={{ fontSize: "1rem" }} /> Edit Profile
                         </button>
                     ) : (
                         <div style={{ display: "flex", gap: "10px" }}>
@@ -193,7 +236,8 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
                                     cursor: "pointer",
                                     display: "flex",
                                     alignItems: "center",
-                                    gap: "6px"
+                                    gap: "6px",
+                                    boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)"
                                 }}
                             >
                                 <SaveIcon style={{ fontSize: "1rem" }} /> Save Changes
@@ -221,7 +265,7 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
                 </div>
             </div>
 
-            {/* Profile Overview Header Card */}
+            {/* 1. Profile Header Card */}
             <div style={{
                 background: "#FFFFFF",
                 borderRadius: "20px",
@@ -256,7 +300,7 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
                             )}
                         </div>
 
-                        {/* Image upload button (accessible in view or edit mode) */}
+                        {/* Image upload button */}
                         <input
                             type="file"
                             id="profile-avatar-file-input"
@@ -290,36 +334,60 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
 
                     {/* Basic Info Overview */}
                     <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "4px" }}>
-                            <h3 style={{ margin: 0, fontWeight: "800", fontSize: "1.5rem", color: "#0F172A" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", marginBottom: "6px" }}>
+                            <h3 style={{ margin: 0, fontWeight: "800", fontSize: "1.6rem", color: "#0F172A" }}>
                                 {user?.username || "Trader"}
                             </h3>
+                            <span style={{
+                                color: "#64748B",
+                                fontSize: "0.95rem",
+                                background: "#F1F5F9",
+                                padding: "4px 10px",
+                                borderRadius: "8px",
+                                fontWeight: "500",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px"
+                            }}>
+                                <EmailIcon style={{ fontSize: "0.95rem", color: "#64748B" }} /> {user?.email || "No email"}
+                            </span>
                         </div>
 
-                        <div style={{ color: "#64748B", fontSize: "0.9rem", marginBottom: "8px" }}>
-                            Client Code: <strong style={{ color: "#2563EB" }}>{traderCode}</strong> &bull; Member since <strong>{memberSinceDate}</strong>
+                        <div style={{ color: "#64748B", fontSize: "0.9rem", marginBottom: "10px", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                            <span>Client Code: <strong style={{ color: "#2563EB" }}>{traderCode}</strong></span>
+                            <span>&bull;</span>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                <CalendarTodayIcon style={{ fontSize: "0.85rem", color: "#64748B" }} /> Member since <strong>{memberSinceDate}</strong>
+                            </span>
                         </div>
 
                         <p style={{ margin: 0, color: "#475569", fontSize: "0.95rem", fontStyle: user?.bio ? "normal" : "italic" }}>
-                            {user?.bio || "No bio added yet."}
+                            {user?.bio || "No trading bio added yet."}
                         </p>
                     </div>
 
                 </div>
             </div>
 
-            {/* Real Personal Details Form / Cards */}
+            {/* 2. Personal Information (Editable) */}
             <div style={{ background: "#FFFFFF", borderRadius: "20px", border: "1px solid #E2E8F0", padding: "28px", boxShadow: "0 4px 16px rgba(0, 0, 0, 0.03)", marginBottom: "24px" }}>
-                <h4 style={{ margin: "0 0 20px 0", fontWeight: "700", color: "#0F172A", fontSize: "1.1rem" }}>
-                    Personal Account Information
-                </h4>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                    <h4 style={{ margin: 0, fontWeight: "700", color: "#0F172A", fontSize: "1.15rem", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <PersonIcon style={{ color: "#2563EB", fontSize: "1.2rem" }} /> Personal Information
+                    </h4>
+                    {isEditing && (
+                        <span style={{ fontSize: "0.8rem", color: "#2563EB", fontWeight: "600", background: "#EFF6FF", padding: "4px 10px", borderRadius: "6px" }}>
+                            Editing Mode Active
+                        </span>
+                    )}
+                </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px" }}>
                     
                     {/* Username */}
                     <div style={{ background: "#F8FAFC", padding: "16px", borderRadius: "12px", border: "1px solid #E2E8F0" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#64748B", fontSize: "0.8rem", fontWeight: "700", textTransform: "uppercase", marginBottom: "6px" }}>
-                            <PersonIcon style={{ fontSize: "1rem", color: "#3B82F6" }} /> Username / Display Name
+                            <PersonIcon style={{ fontSize: "1rem", color: "#3B82F6" }} /> Full Name / Username
                         </div>
                         {!isEditing ? (
                             <strong style={{ fontSize: "1.05rem", color: "#0F172A" }}>{user?.username || "N/A"}</strong>
@@ -329,7 +397,7 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
                                 name="username"
                                 value={formData.username}
                                 onChange={handleChange}
-                                placeholder="Enter username..."
+                                placeholder="Enter full name or username..."
                                 style={{
                                     width: "100%",
                                     padding: "8px 12px",
@@ -346,8 +414,13 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
 
                     {/* Email */}
                     <div style={{ background: "#F8FAFC", padding: "16px", borderRadius: "12px", border: "1px solid #E2E8F0" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#64748B", fontSize: "0.8rem", fontWeight: "700", textTransform: "uppercase", marginBottom: "6px" }}>
-                            <EmailIcon style={{ fontSize: "1rem", color: "#3B82F6" }} /> Registered Email Address
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#64748B", fontSize: "0.8rem", fontWeight: "700", textTransform: "uppercase" }}>
+                                <EmailIcon style={{ fontSize: "1rem", color: "#3B82F6" }} /> Registered Email Address
+                            </div>
+                            <span style={{ fontSize: "0.75rem", color: "#10B981", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                                <VerifiedUserIcon style={{ fontSize: "0.9rem" }} /> Verified
+                            </span>
                         </div>
                         {!isEditing ? (
                             <strong style={{ fontSize: "1.05rem", color: "#0F172A" }}>{user?.email || "N/A"}</strong>
@@ -436,56 +509,191 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
                 </div>
             </div>
 
-            {/* Real Trading & Portfolio Summary Cards */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+            {/* 3. Trading Account Summary (Read-Only) */}
+            <div style={{ marginBottom: "24px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                    <h4 style={{ margin: 0, fontWeight: "700", color: "#0F172A", fontSize: "1.15rem", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <AccountTreeIcon style={{ color: "#2563EB", fontSize: "1.2rem" }} /> Trading Account Summary
+                    </h4>
+                    <span style={{ fontSize: "0.8rem", color: "#64748B", background: "#F8FAFC", padding: "4px 10px", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
+                        Read-Only Financial Data
+                    </span>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
+                    
+                    {/* Total Net Worth */}
+                    <div style={{ background: "linear-gradient(135deg, #1E293B 0%, #0F172A 100%)", color: "#FFFFFF", padding: "20px", borderRadius: "16px", boxShadow: "0 4px 14px rgba(15, 23, 42, 0.15)" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                            <span style={{ fontSize: "0.8rem", color: "#94A3B8", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Net Worth</span>
+                            <ShowChartIcon style={{ color: "#38BDF8", fontSize: "1.3rem" }} />
+                        </div>
+                        <h3 style={{ margin: 0, fontWeight: "800", color: "#FFFFFF", fontSize: "1.45rem" }}>
+                            ₹{totalNetWorth.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </h3>
+                        <span style={{ fontSize: "0.75rem", color: "#94A3B8", marginTop: "4px", display: "block" }}>Cash + Stock Valuation</span>
+                    </div>
+
+                    {/* Available Cash */}
+                    <div style={{ background: "#FFFFFF", padding: "20px", borderRadius: "16px", border: "1px solid #E2E8F0", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                            <span style={{ fontSize: "0.8rem", color: "#64748B", fontWeight: "700", textTransform: "uppercase" }}>Available Cash</span>
+                            <AccountBalanceWalletIcon style={{ color: "#2563EB", fontSize: "1.3rem" }} />
+                        </div>
+                        <h3 style={{ margin: 0, fontWeight: "800", color: "#2563EB", fontSize: "1.4rem" }}>
+                            ₹{availableMargin.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </h3>
+                        <span style={{ fontSize: "0.75rem", color: "#64748B", marginTop: "4px", display: "block" }}>Margin Ready for Orders</span>
+                    </div>
+
+                    {/* Portfolio Value */}
+                    <div style={{ background: "#FFFFFF", padding: "20px", borderRadius: "16px", border: "1px solid #E2E8F0", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                            <span style={{ fontSize: "0.8rem", color: "#64748B", fontWeight: "700", textTransform: "uppercase" }}>Portfolio Value</span>
+                            <TrendingUpIcon style={{ color: "#10B981", fontSize: "1.3rem" }} />
+                        </div>
+                        <h3 style={{ margin: 0, fontWeight: "800", color: "#0F172A", fontSize: "1.4rem" }}>
+                            ₹{currentPortfolioValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </h3>
+                        <span style={{ fontSize: "0.75rem", color: "#64748B", marginTop: "4px", display: "block" }}>Invested: ₹{totalSpentOnStocks.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    </div>
+
+                    {/* Holdings & Orders Count */}
+                    <div style={{ background: "#FFFFFF", padding: "20px", borderRadius: "16px", border: "1px solid #E2E8F0", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                            <span style={{ fontSize: "0.8rem", color: "#64748B", fontWeight: "700", textTransform: "uppercase" }}>Holdings & Orders</span>
+                            <ShoppingCartIcon style={{ color: "#F59E0B", fontSize: "1.3rem" }} />
+                        </div>
+                        <h3 style={{ margin: 0, fontWeight: "800", color: "#0F172A", fontSize: "1.4rem" }}>
+                            {holdings.length} <small style={{ fontSize: "0.85rem", color: "#64748B", fontWeight: "500" }}>stocks</small>
+                        </h3>
+                        <span style={{ fontSize: "0.75rem", color: "#64748B", marginTop: "4px", display: "block" }}>{orders.length} Executed Orders</span>
+                    </div>
+
+                    {/* Overall P&L */}
+                    <div style={{ background: "#FFFFFF", padding: "20px", borderRadius: "16px", border: "1px solid #E2E8F0", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                            <span style={{ fontSize: "0.8rem", color: "#64748B", fontWeight: "700", textTransform: "uppercase" }}>Overall P&L</span>
+                            {isProfit ? (
+                                <TrendingUpIcon style={{ color: "#10B981", fontSize: "1.3rem" }} />
+                            ) : (
+                                <TrendingDownIcon style={{ color: "#EF4444", fontSize: "1.3rem" }} />
+                            )}
+                        </div>
+                        <h3 style={{ margin: 0, fontWeight: "800", color: isProfit ? "#10B981" : "#EF4444", fontSize: "1.4rem" }}>
+                            {isProfit ? "+" : ""}₹{totalPnl.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </h3>
+                        <span style={{ fontSize: "0.75rem", color: isProfit ? "#10B981" : "#EF4444", fontWeight: "600", marginTop: "4px", display: "block" }}>
+                            {isProfit ? "+" : ""}{pnlPercent}% Total Outcome
+                        </span>
+                    </div>
+
+                </div>
+            </div>
+
+            {/* 4. Account Activity (Dynamic Feed) */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "20px", marginBottom: "24px" }}>
                 
-                <div style={{ background: "#FFFFFF", padding: "20px", borderRadius: "16px", border: "1px solid #E2E8F0", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-                        <span style={{ fontSize: "0.8rem", color: "#64748B", fontWeight: "700", textTransform: "uppercase" }}>Available Cash</span>
-                        <AccountBalanceWalletIcon style={{ color: "#2563EB", fontSize: "1.3rem" }} />
+                {/* Recent Trading Orders */}
+                <div style={{ background: "#FFFFFF", borderRadius: "20px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 4px 16px rgba(0, 0, 0, 0.03)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                        <h4 style={{ margin: 0, fontWeight: "700", color: "#0F172A", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: "8px" }}>
+                            <HistoryIcon style={{ color: "#2563EB", fontSize: "1.2rem" }} /> Recent Trading Activity
+                        </h4>
+                        <Link to="/orders" style={{ textDecoration: "none", color: "#2563EB", fontSize: "0.8rem", fontWeight: "600" }}>
+                            View All &rarr;
+                        </Link>
                     </div>
-                    <h3 style={{ margin: 0, fontWeight: "800", color: "#2563EB", fontSize: "1.35rem" }}>
-                        ₹{availableMargin.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                    </h3>
-                    <span style={{ fontSize: "0.75rem", color: "#64748B", marginTop: "4px", display: "block" }}>Ready for Buy Orders</span>
+
+                    {recentOrders.length === 0 ? (
+                        <div style={{ textAlign: "center", padding: "30px 10px", color: "#94A3B8", fontSize: "0.9rem" }}>
+                            No orders placed yet.
+                        </div>
+                    ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                            {recentOrders.map((order, idx) => (
+                                <div key={order._id || idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#F8FAFC", borderRadius: "10px", border: "1px solid #E2E8F0" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                        <span style={{
+                                            padding: "3px 8px",
+                                            borderRadius: "6px",
+                                            fontSize: "0.75rem",
+                                            fontWeight: "700",
+                                            background: (order.mode || order.side) === "BUY" ? "#DCFCE7" : "#FEE2E2",
+                                            color: (order.mode || order.side) === "BUY" ? "#15803D" : "#B91C1C"
+                                        }}>
+                                            {order.mode || order.side || "BUY"}
+                                        </span>
+                                        <div>
+                                            <strong style={{ fontSize: "0.9rem", color: "#0F172A", display: "block" }}>
+                                                {order.name || order.symbol}
+                                            </strong>
+                                            <span style={{ fontSize: "0.75rem", color: "#64748B" }}>
+                                                {order.qty || order.quantity} shares &bull; {order.createdAt ? new Date(order.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Today"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div style={{ textAlign: "right" }}>
+                                        <strong style={{ fontSize: "0.9rem", color: "#0F172A", display: "block" }}>
+                                            ₹{(order.price || order.executedPrice || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                        </strong>
+                                        <span style={{ fontSize: "0.75rem", color: "#10B981", fontWeight: "600" }}>
+                                            Executed
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
-                <div style={{ background: "#FFFFFF", padding: "20px", borderRadius: "16px", border: "1px solid #E2E8F0", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-                        <span style={{ fontSize: "0.8rem", color: "#64748B", fontWeight: "700", textTransform: "uppercase" }}>Active Holdings</span>
-                        <ShowChartIcon style={{ color: "#10B981", fontSize: "1.3rem" }} />
+                {/* Session & Security Overview */}
+                <div style={{ background: "#FFFFFF", borderRadius: "20px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 4px 16px rgba(0, 0, 0, 0.03)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                        <h4 style={{ margin: 0, fontWeight: "700", color: "#0F172A", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: "8px" }}>
+                            <SecurityIcon style={{ color: "#10B981", fontSize: "1.2rem" }} /> Account Security & Session
+                        </h4>
+                        <Link to="/settings" style={{ textDecoration: "none", color: "#2563EB", fontSize: "0.8rem", fontWeight: "600" }}>
+                            Manage &rarr;
+                        </Link>
                     </div>
-                    <h3 style={{ margin: 0, fontWeight: "800", color: "#0F172A", fontSize: "1.35rem" }}>
-                        {holdings.length} <small style={{ fontSize: "0.85rem", color: "#64748B", fontWeight: "500" }}>stocks</small>
-                    </h3>
-                    <span style={{ fontSize: "0.75rem", color: "#64748B", marginTop: "4px", display: "block" }}>Valuation: ₹{currentPortfolioValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-                </div>
 
-                <div style={{ background: "#FFFFFF", padding: "20px", borderRadius: "16px", border: "1px solid #E2E8F0", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-                        <span style={{ fontSize: "0.8rem", color: "#64748B", fontWeight: "700", textTransform: "uppercase" }}>Orders Executed</span>
-                        <ShoppingCartIcon style={{ color: "#F59E0B", fontSize: "1.3rem" }} />
-                    </div>
-                    <h3 style={{ margin: 0, fontWeight: "800", color: "#0F172A", fontSize: "1.35rem" }}>
-                        {orders.length} <small style={{ fontSize: "0.85rem", color: "#64748B", fontWeight: "500" }}>orders</small>
-                    </h3>
-                    <span style={{ fontSize: "0.75rem", color: "#64748B", marginTop: "4px", display: "block" }}>Recorded Activity</span>
-                </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        <div style={{ background: "#F8FAFC", padding: "12px 14px", borderRadius: "10px", border: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                                <span style={{ fontSize: "0.8rem", color: "#64748B", display: "block" }}>Authentication Method</span>
+                                <strong style={{ fontSize: "0.9rem", color: "#0F172A" }}>JWT HttpOnly Secure Cookie</strong>
+                            </div>
+                            <span style={{ fontSize: "0.75rem", background: "#DCFCE7", color: "#15803D", padding: "3px 8px", borderRadius: "6px", fontWeight: "700" }}>
+                                Active
+                            </span>
+                        </div>
 
-                <div style={{ background: "#FFFFFF", padding: "20px", borderRadius: "16px", border: "1px solid #E2E8F0", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-                        <span style={{ fontSize: "0.8rem", color: "#64748B", fontWeight: "700", textTransform: "uppercase" }}>Overall P&L</span>
-                        <ShowChartIcon style={{ color: isProfit ? "#10B981" : "#EF4444", fontSize: "1.3rem" }} />
+                        <div style={{ background: "#F8FAFC", padding: "12px 14px", borderRadius: "10px", border: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                                <span style={{ fontSize: "0.8rem", color: "#64748B", display: "block" }}>Session Protection</span>
+                                <strong style={{ fontSize: "0.9rem", color: "#0F172A" }}>Cross-Site Request Forgery Safe</strong>
+                            </div>
+                            <span style={{ fontSize: "0.75rem", background: "#EFF6FF", color: "#2563EB", padding: "3px 8px", borderRadius: "6px", fontWeight: "700" }}>
+                                Protected
+                            </span>
+                        </div>
+
+                        <div style={{ background: "#F8FAFC", padding: "12px 14px", borderRadius: "10px", border: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                                <span style={{ fontSize: "0.8rem", color: "#64748B", display: "block" }}>Wallet & Ledger Audit</span>
+                                <strong style={{ fontSize: "0.9rem", color: "#0F172A" }}>{transactions.length} Total Transactions Logged</strong>
+                            </div>
+                            <Link to="/funds" style={{ textDecoration: "none", fontSize: "0.75rem", color: "#2563EB", fontWeight: "700" }}>
+                                Ledger
+                            </Link>
+                        </div>
                     </div>
-                    <h3 style={{ margin: 0, fontWeight: "800", color: isProfit ? "#10B981" : "#EF4444", fontSize: "1.35rem" }}>
-                        {isProfit ? "+" : ""}₹{totalPnl.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                    </h3>
-                    <span style={{ fontSize: "0.75rem", color: isProfit ? "#10B981" : "#EF4444", fontWeight: "600", marginTop: "4px", display: "block" }}>Total Portfolio Outcome</span>
                 </div>
 
             </div>
 
-            {/* Quick Action Buttons Bar */}
+            {/* Quick Action Navigation Buttons */}
             <div style={{ background: "#FFFFFF", borderRadius: "20px", border: "1px solid #E2E8F0", padding: "20px 24px", boxShadow: "0 2px 8px rgba(0,0,0,0.02)", display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                     <Link to="/funds" style={{ textDecoration: "none" }}>
@@ -503,6 +711,12 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
                     <Link to="/orders" style={{ textDecoration: "none" }}>
                         <button style={{ background: "#F1F5F9", color: "#0F172A", border: "1px solid #CBD5E1", padding: "10px 18px", borderRadius: "10px", fontWeight: "600", fontSize: "0.85rem", cursor: "pointer" }}>
                             View Orders ({orders.length})
+                        </button>
+                    </Link>
+
+                    <Link to="/settings" style={{ textDecoration: "none" }}>
+                        <button style={{ background: "#F1F5F9", color: "#0F172A", border: "1px solid #CBD5E1", padding: "10px 18px", borderRadius: "10px", fontWeight: "600", fontSize: "0.85rem", cursor: "pointer" }}>
+                            Trading Preferences
                         </button>
                     </Link>
                 </div>

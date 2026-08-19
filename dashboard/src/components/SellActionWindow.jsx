@@ -8,13 +8,16 @@ import { API_URL } from "../config";
 import "./SellActionWindow.css";
 
 const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
+  const defaultOrderType = localStorage.getItem("pulsetrade_orderType") || "MARKET";
+
   const [productType, setProductType] = useState("CNC"); // CNC, MIS
-  const [orderType, setOrderType] = useState("MARKET"); // MARKET, LIMIT
+  const [orderType, setOrderType] = useState(defaultOrderType); // MARKET, LIMIT
   const [stockQuantity, setStockQuantity] = useState(1);
   const [liveLtp, setLiveLtp] = useState(initialPrice > 0 ? initialPrice : 1450.00);
   const [stockPrice, setStockPrice] = useState(initialPrice > 0 ? initialPrice : 1450.00);
   const [availableCash, setAvailableCash] = useState(0);
   const [heldQty, setHeldQty] = useState(0);
+
 
   // Dragging state
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -101,8 +104,21 @@ const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
   };
 
   const handleSellClick = async () => {
+    const finalPrice = orderType === "MARKET" ? liveLtp : (Number(stockPrice) > 0 ? Number(stockPrice) : liveLtp);
+    const estimatedTotal = (Number(stockQuantity) * finalPrice).toFixed(2);
+
+    // Check if order confirmation is enabled in Settings
+    const isConfirmationEnabled = localStorage.getItem("pulsetrade_orderConfirmation") === "true";
+    if (isConfirmationEnabled) {
+      const confirmed = window.confirm(
+        `Please confirm your order:\n\nAction: SELL\nInstrument: ${uid}\nQuantity: ${stockQuantity} shares\nOrder Type: ${orderType}\nPrice: ₹${finalPrice.toFixed(2)}\nEstimated Credit: ₹${estimatedTotal}\n\nDo you want to proceed?`
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
     try {
-      const finalPrice = orderType === "MARKET" ? liveLtp : (Number(stockPrice) > 0 ? Number(stockPrice) : liveLtp);
       await axios.post(
         `${API_URL}/newOrders`,
         {
@@ -127,6 +143,7 @@ const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
       closeSellWindow();
     }
   };
+
 
   const basePrice = liveLtp || stockPrice || 1450;
   const totalAmount = (Number(stockQuantity) * (orderType === "MARKET" ? liveLtp : (Number(stockPrice) || liveLtp))).toFixed(2);
