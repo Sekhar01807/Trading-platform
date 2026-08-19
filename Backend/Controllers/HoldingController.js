@@ -22,14 +22,14 @@ const getAllPositions = async (req, res, next) => {
 
 const seedDemoData = async (req, res, next) => {
     try {
-        if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "true") {
-            return res.status(403).json({
+        const userId = req.userId;
+        if (!userId) {
+            return res.status(401).json({
                 success: false,
-                message: "Demo portfolio seeding is disabled in production mode."
+                message: "Authentication required to seed demo portfolio. Please log in."
             });
         }
 
-        const userId = req.userId;
         const result = await HoldingService.seedDemoData(userId);
 
         res.status(200).json({
@@ -45,14 +45,14 @@ const seedDemoData = async (req, res, next) => {
 
 const resetPortfolio = async (req, res, next) => {
     try {
-        if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "true") {
-            return res.status(403).json({
+        const userId = req.userId;
+        if (!userId) {
+            return res.status(401).json({
                 success: false,
-                message: "Portfolio reset is disabled in production mode."
+                message: "Authentication required to reset portfolio. Please log in."
             });
         }
 
-        const userId = req.userId;
         const result = await HoldingService.resetPortfolio(userId);
 
         res.status(200).json({

@@ -55,12 +55,14 @@ const Holdings = () => {
     const handleLoadDemoData = async () => {
         try {
             setSeedingDemo(true);
-            await holdingsApi.seedDemoData();
-            fetchHoldings();
+            const res = await holdingsApi.seedDemoData();
+            await fetchHoldings();
             window.dispatchEvent(new Event("portfolioUpdated"));
-            toast.success("Loaded demo portfolio with ₹50,000 balance!");
+            toast.success(res.data?.message || "Loaded demo portfolio with ₹50,000 balance!");
         } catch (err) {
-            toast.error("Failed to seed demo portfolio.");
+            console.error("Seed demo error:", err);
+            const errMsg = err.response?.data?.message || (err.response?.status === 401 ? "Session expired or not signed in. Please log in again." : "Failed to seed demo portfolio.");
+            toast.error(errMsg);
         } finally {
             setSeedingDemo(false);
         }
@@ -68,12 +70,14 @@ const Holdings = () => {
 
     const handleResetPortfolio = async () => {
         try {
-            await holdingsApi.resetPortfolio();
-            fetchHoldings();
+            const res = await holdingsApi.resetPortfolio();
+            await fetchHoldings();
             window.dispatchEvent(new Event("portfolioUpdated"));
-            toast.info("Portfolio reset to clean state.");
+            toast.info(res.data?.message || "Portfolio reset to clean state.");
         } catch (err) {
-            toast.error("Failed to reset portfolio.");
+            console.error("Reset portfolio error:", err);
+            const errMsg = err.response?.data?.message || "Failed to reset portfolio.";
+            toast.error(errMsg);
         }
     };
 
