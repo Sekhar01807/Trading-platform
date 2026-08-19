@@ -1,22 +1,27 @@
+/* =========================================================
+   PulseTrade Authentication (Signup & Login) Design System
+   ========================================================= */
+
 .form_container {
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background: radial-gradient(circle at 50% 20%, #EFF6FF 0%, #F8FAFC 70%, #E2E8F0 100%);
+    background: radial-gradient(circle at 50% 15%, #EFF6FF 0%, #F8FAFC 60%, #E2E8F0 100%);
     background-image: 
-        radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 60%),
-        linear-gradient(to right, rgba(226, 232, 240, 0.4) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(226, 232, 240, 0.4) 1px, transparent 1px);
-    background-size: 100% 100%, 30px 30px, 30px 30px;
-    padding: 24px;
+        radial-gradient(circle at 50% 15%, rgba(59, 130, 246, 0.08) 0%, transparent 60%),
+        linear-gradient(to right, rgba(226, 232, 240, 0.5) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(226, 232, 240, 0.5) 1px, transparent 1px);
+    background-size: 100% 100%, 32px 32px, 32px 32px;
+    padding: 32px 16px;
     box-sizing: border-box;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     position: relative;
-    overflow: hidden;
+    overflow-y: auto;
 }
 
+/* Brand Header */
 .auth_brand {
     display: flex;
     align-items: center;
@@ -25,41 +30,28 @@
     z-index: 2;
 }
 
+.auth_brand_logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25);
+    display: block;
+}
+
 .auth_brand_title {
-    font-size: 1.9rem;
-    font-weight: 700;
+    font-size: 2rem;
+    font-weight: 800;
     letter-spacing: -0.5px;
     color: #0F172A;
 }
 
-.auth_badge_strip {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 20px;
-    z-index: 2;
-}
-
-.auth_badge_pill {
+/* Form Container Card */
+.auth_form_card {
     background: #FFFFFF;
-    border: 1px solid #CBD5E1;
-    border-radius: 20px;
-    padding: 6px 14px;
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: #334155;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-}
-
-.form_container form {
-    background: #FFFFFF;
-    border: 1px solid #CBD5E1;
-    padding: 40px;
-    border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.03);
+    border: 1px solid #E2E8F0;
+    padding: 36px 32px;
+    border-radius: 18px;
+    box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.08), 0 0 1px 1px rgba(15, 23, 42, 0.03);
     width: 100%;
     max-width: 440px;
     display: flex;
@@ -67,91 +59,317 @@
     gap: 20px;
     box-sizing: border-box;
     z-index: 2;
+    transition: box-shadow 0.2s ease;
 }
 
-.form_container h2 {
+.auth_form_card h2 {
     color: #0F172A;
     font-weight: 700;
-    margin: 0 0 6px 0;
-    font-size: 1.6rem;
+    margin: 0 0 4px 0;
+    font-size: 1.55rem;
     text-align: center;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.4px;
 }
 
 .form_subtitle {
     color: #64748B;
     font-size: 0.88rem;
     text-align: center;
-    margin: -10px 0 10px 0;
-    line-height: 1.5;
+    margin: -10px 0 6px 0;
+    line-height: 1.45;
 }
 
-.form_container label {
-    font-size: 0.85rem;
-    color: #334155;
-    margin-bottom: 6px;
+/* =========================================================
+   Modern In-Form Flash Message Banner
+   ========================================================= */
+
+.auth_flash_banner {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-weight: 600;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.4;
+    animation: flashSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-sizing: border-box;
+    width: 100%;
 }
 
-.form_container input {
+@keyframes flashSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.auth_flash_banner.error {
+    background-color: #FEF2F2;
+    border: 1px solid #FECACA;
+    border-left: 4px solid #EF4444;
+    color: #991B1B;
+}
+
+.auth_flash_banner.success {
+    background-color: #ECFDF5;
+    border: 1px solid #A7F3D0;
+    border-left: 4px solid #10B981;
+    color: #065F46;
+}
+
+.flash_icon_wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.flash_icon {
+    font-size: 1.25rem !important;
+}
+
+.auth_flash_banner.error .flash_icon {
+    color: #DC2626;
+}
+
+.auth_flash_banner.success .flash_icon {
+    color: #059669;
+}
+
+.flash_text {
+    flex: 1;
+}
+
+.flash_close_btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 4px;
+    transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.flash_close_btn:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* =========================================================
+   Form Groups & Clean Non-Overlapping Field Layout
+   ========================================================= */
+
+.form_group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     width: 100%;
-    padding: 12px 16px;
-    border: 1px solid #CBD5E1;
-    border-radius: 10px;
-    font-size: 0.95rem;
-    color: #0F172A;
-    outline: none;
-    background-color: #F8FAFC;
-    transition: all 0.2s ease;
+    text-align: left;
     box-sizing: border-box;
 }
 
-.form_container input:focus {
-    border-color: #3B82F6;
-    background-color: #FFFFFF;
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+.form_label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.875rem;
+    color: #334155;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.2;
 }
 
-.form_container button {
+.form_label_icon {
+    font-size: 1.1rem !important;
+    color: #3B82F6 !important;
+    flex-shrink: 0;
+}
+
+.input_wrapper {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.input_wrapper input {
+    width: 100%;
+    padding: 12px 14px;
+    padding-right: 44px;
+    border: 1.5px solid #CBD5E1;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    color: #0F172A;
+    background-color: #F8FAFC;
+    outline: none;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
+.input_wrapper input::placeholder {
+    color: #94A3B8;
+    font-size: 0.92rem;
+}
+
+.input_wrapper input:hover {
+    border-color: #94A3B8;
+    background-color: #FFFFFF;
+}
+
+.input_wrapper input:focus {
+    border-color: #3B82F6;
+    background-color: #FFFFFF;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+
+.password_toggle_btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #64748B;
+    padding: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: color 0.15s ease, background-color 0.15s ease;
+    z-index: 1;
+}
+
+.password_toggle_btn:hover {
+    color: #0F172A;
+    background-color: #E2E8F0;
+}
+
+/* =========================================================
+   Submit Button & Footer Links
+   ========================================================= */
+
+.auth_submit_btn {
     background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
     color: #ffffff;
     border: none;
-    padding: 14px;
-    font-size: 1rem;
+    padding: 13px 18px;
+    font-size: 0.98rem;
     font-weight: 600;
     border-radius: 10px;
     cursor: pointer;
-    margin-top: 10px;
+    margin-top: 4px;
     transition: all 0.2s ease;
-    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
+    font-family: inherit;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.form_container button:hover {
+.auth_submit_btn:hover:not(:disabled) {
     background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
     transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(59, 130, 246, 0.45);
 }
 
-.form_container span {
+.auth_submit_btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.auth_submit_btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.auth_footer_link {
     font-size: 0.88rem;
     color: #64748B;
     text-align: center;
-    margin-top: 15px;
+    margin-top: 2px;
 }
 
-.form_container span a {
-    color: #3B82F6;
+.auth_footer_link a {
+    color: #2563EB;
     text-decoration: none;
     font-weight: 600;
     margin-left: 4px;
+    transition: color 0.15s ease;
 }
 
-.form_container span a:hover {
+.auth_footer_link a:hover {
+    color: #1D4ED8;
     text-decoration: underline;
+}
+
+/* =========================================================
+   React-Toastify Custom Premium Flash Styling
+   ========================================================= */
+
+.Toastify__toast-container {
+    z-index: 99999 !important;
+    padding: 12px !important;
+    width: 380px !important;
+    max-width: 90vw !important;
+}
+
+.Toastify__toast {
+    border-radius: 12px !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-size: 0.88rem !important;
+    font-weight: 500 !important;
+    box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.15), 0 0 1px 1px rgba(15, 23, 42, 0.05) !important;
+    padding: 14px 16px !important;
+    min-height: 54px !important;
+    border: 1px solid #E2E8F0 !important;
+}
+
+.Toastify__toast--error {
+    background: #FFFFFF !important;
+    color: #991B1B !important;
+    border-left: 5px solid #EF4444 !important;
+}
+
+.Toastify__toast--success {
+    background: #FFFFFF !important;
+    color: #065F46 !important;
+    border-left: 5px solid #10B981 !important;
+}
+
+.Toastify__toast-body {
+    padding: 0 !important;
+    margin: 0 !important;
+    line-height: 1.45 !important;
+}
+
+.Toastify__progress-bar--error {
+    background: #EF4444 !important;
+}
+
+.Toastify__progress-bar--success {
+    background: #10B981 !important;
+}
+
+/* Mobile Responsiveness */
+@media screen and (max-width: 480px) {
+    .auth_form_card {
+        padding: 28px 20px;
+    }
+    .auth_brand_title {
+        font-size: 1.7rem;
+    }
 }

@@ -4,7 +4,12 @@ import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import LoginIcon from '@mui/icons-material/Login';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CloseIcon from '@mui/icons-material/Close';
 import { API_URL } from "../config";
 import "./Auth.css";
 
@@ -14,6 +19,10 @@ const Login = () => {
         email: "",
         password: "",
     });
+    const [showPassword, setShowPassword] = useState(false);
+    const [flashMessage, setFlashMessage] = useState(null); // { type: 'error' | 'success', text: string }
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const { email, password } = inputValue;
 
     React.useEffect(() => {
@@ -28,102 +37,204 @@ const Login = () => {
 
     const handleOnChange = (e) => {
         const { name, value } = e.target;
-        setInputValue({
-            ...inputValue,
+        setInputValue((prev) => ({
+            ...prev,
             [name]: value,
-        });
+        }));
+        if (flashMessage && flashMessage.type === "error") {
+            setFlashMessage(null);
+        }
     };
 
-    const handleError = (err) =>
-        toast.error(err, {
-            position: "top-right",
-        });
-    const handleSuccess = (msg) =>
-        toast.success(msg, {
-            position: "top-right",
-        });
+    const validateForm = () => {
+        const cleanEmail = (email || "").trim();
+        const cleanPass = (password || "");
+
+        if (!cleanEmail) {
+            const err = "Please enter your email address.";
+            setFlashMessage({ type: "error", text: err });
+            toast.error(err);
+            return false;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(cleanEmail)) {
+            const err = "Please enter a valid email address.";
+            setFlashMessage({ type: "error", text: err });
+            toast.error(err);
+            return false;
+        }
+
+        if (!cleanPass) {
+            const err = "Please enter your password.";
+            setFlashMessage({ type: "error", text: err });
+            toast.error(err);
+            return false;
+        }
+
+        return true;
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!validateForm()) {
+            return;
+        }
+
+        setIsSubmitting(true);
+        setFlashMessage(null);
+
         try {
             const { data } = await axios.post(
                 `${API_URL}/login`,
                 {
-                    ...inputValue,
+                    email: email.trim(),
+                    password,
                 },
                 { withCredentials: true }
             );
+
             const { success, message } = data;
             if (success) {
-                handleSuccess(message || "Welcome back!");
+                const msg = message || "Welcome back to PulseTrade!";
+                setFlashMessage({ type: "success", text: msg });
+                toast.success(msg);
                 setTimeout(() => {
                     navigate("/");
-                }, 400);
+                }, 500);
             } else {
-                handleError(message || "Incorrect email or password");
+                const errMsg = message || "Incorrect email or password.";
+                setFlashMessage({ type: "error", text: errMsg });
+                toast.error(errMsg);
             }
         } catch (error) {
             console.error("Login error:", error);
-            handleError(error.response?.data?.message || "Login failed. Please check your credentials.");
+            const errMsg = error.response?.data?.message || "Login failed. Please check your credentials.";
+            setFlashMessage({ type: "error", text: errMsg });
+            toast.error(errMsg);
+        } finally {
+            setIsSubmitting(false);
         }
-        setInputValue({
-            email: "",
-            password: "",
-        });
     };
 
     return (
         <div className="form_container">
-            {/* PulseTrade Brand Mark */}
+            {/* PulseTrade Brand Header */}
             <div className="auth_brand">
                 <img 
                     src="/logo.svg" 
                     alt="PulseTrade Logo" 
-                    style={{ width: "44px", height: "44px", borderRadius: "10px", boxShadow: "0 4px 14px rgba(59, 130, 246, 0.3)" }} 
+                    className="auth_brand_logo"
                 />
                 <div className="auth_brand_title">
                     Pulse<span style={{ color: "#10B981" }}>Trade</span>
                 </div>
             </div>
 
-            {/* Login Card */}
-            <form onSubmit={handleSubmit}>
+            {/* Login Form Card */}
+            <form onSubmit={handleSubmit} className="auth_form_card" noValidate>
                 <h2>Sign In to Workspace</h2>
-                <p className="form_subtitle">Access your live stock watchlist, orders & portfolio terminal</p>
-                <div>
-                    <label htmlFor="email">
-                        <EmailOutlinedIcon style={{ fontSize: "1rem", color: "#3B82F6" }} /> Email Address
+                <p className="form_subtitle">
+                    Access your live stock watchlist, orders & portfolio terminal
+                </p>
+
+                {/* Modern Flash Alert Banner */}
+                {flashMessage && (
+                    <div className={`auth_flash_banner ${flashMessage.type}`} role="alert">
+                        <div className="flash_icon_wrap">
+                            {flashMessage.type === "success" ? (
+                                <CheckCircleOutlineIcon className="flash_icon" />
+                            ) : (
+                                <ErrorOutlineIcon className="flash_icon" />
+                            )}
+                        </div>
+                        <div className="flash_text">{flashMessage.text}</div>
+                        <button 
+                            type="button" 
+                            className="flash_close_btn" 
+                            onClick={() => setFlashMessage(null)}
+                            aria-label="Close message"
+                        >
+                            <CloseIcon style={{ fontSize: "1rem" }} />
+                        </button>
+                    </div>
+                )}
+
+                {/* Field 1: Email Address */}
+                <div className="form_group">
+                    <label htmlFor="email" className="form_label">
+                        <EmailOutlinedIcon className="form_label_icon" /> Email Address
                     </label>
-                    <input
-                        type="email"
-                        name="email"
-                        value={email}
-                        placeholder="name@example.com"
-                        onChange={handleOnChange}
-                        required
-                    />
+                    <div className="input_wrapper">
+                        <input
+                            id="email"
+                            type="email"
+                            name="email"
+                            value={email}
+                            placeholder="name@example.com"
+                            onChange={handleOnChange}
+                            autoComplete="email"
+                            required
+                        />
+                    </div>
                 </div>
-                <div>
-                    <label htmlFor="password">
-                        <LockOutlinedIcon style={{ fontSize: "1rem", color: "#3B82F6" }} /> Password
+
+                {/* Field 2: Password */}
+                <div className="form_group">
+                    <label htmlFor="password" className="form_label">
+                        <LockOutlinedIcon className="form_label_icon" /> Password
                     </label>
-                    <input
-                        type="password"
-                        name="password"
-                        value={password}
-                        placeholder="••••••••"
-                        onChange={handleOnChange}
-                        required
-                    />
+                    <div className="input_wrapper">
+                        <input
+                            id="password"
+                            type={showPassword ? "text" : "password"}
+                            name="password"
+                            value={password}
+                            placeholder="••••••••"
+                            onChange={handleOnChange}
+                            autoComplete="current-password"
+                            required
+                        />
+                        <button
+                            type="button"
+                            className="password_toggle_btn"
+                            onClick={() => setShowPassword(!showPassword)}
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                            {showPassword ? (
+                                <VisibilityOffOutlinedIcon style={{ fontSize: "1.15rem" }} />
+                            ) : (
+                                <VisibilityOutlinedIcon style={{ fontSize: "1.15rem" }} />
+                            )}
+                        </button>
+                    </div>
                 </div>
-                <button type="submit">
-                    Sign In to Terminal <LoginIcon style={{ fontSize: "1.1rem" }} />
+
+                <button type="submit" className="auth_submit_btn" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                        <span>Authenticating...</span>
+                    ) : (
+                        <>
+                            Sign In to Terminal <LoginIcon style={{ fontSize: "1.1rem" }} />
+                        </>
+                    )}
                 </button>
-                <span>
-                    Don't have an account? <Link to={"/signup"}>Create Free Account</Link>
-                </span>
+
+                <div className="auth_footer_link">
+                    Don't have an account? <Link to="/signup">Create Free Account</Link>
+                </div>
             </form>
-            <ToastContainer />
+
+            <ToastContainer 
+                position="top-right"
+                autoClose={4000}
+                hideProgressBar={false}
+                newestOnTop
+                closeOnClick
+                pauseOnHover
+                theme="light"
+            />
         </div>
     );
 };
