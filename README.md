@@ -1,6 +1,6 @@
 # 📈 PulseTrade — Full-Stack Paper-Trading Platform
 
-> **Full-stack paper-trading platform for simulated stock trading, real-time market data streaming, and portfolio management.**
+> **Enterprise-grade full-stack paper-trading platform for simulated equity trading, real-time market data streaming, atomic financial ledgers, and portfolio management.**
 
 ---
 
@@ -19,6 +19,18 @@
 [![GitHub Actions CI](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/features/actions)
 [![Jest & Supertest](https://img.shields.io/badge/Tests-Jest_%26_Supertest-C21325?style=for-the-badge&logo=jest&logoColor=white)](https://jestjs.io/)
 [![Swagger OpenAPI](https://img.shields.io/badge/OpenAPI_3.0-Swagger_UI-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)](https://swagger.io/)
+
+---
+
+### 🌐 Live Production Deployments
+
+| Component | Production URL | Description |
+|:---|:---|:---|
+| **Trading Terminal** | [https://dashboard-lilac-nu-83.vercel.app](https://dashboard-lilac-nu-83.vercel.app) | React 19 / Vite SPA trading terminal for simulated portfolio management |
+| **Marketing Portal** | [https://frontend-seven-phi-94.vercel.app](https://frontend-seven-phi-94.vercel.app) | Landing page, feature walkthroughs, and onboarding portal |
+| **Backend API** | [https://pulsetrade-zygv.onrender.com](https://pulsetrade-zygv.onrender.com) | Express 5 REST API & Socket.IO real-time price streaming engine |
+| **Swagger UI Docs** | [https://pulsetrade-zygv.onrender.com/api-docs](https://pulsetrade-zygv.onrender.com/api-docs) | Interactive OpenAPI 3.0 API documentation & test runner |
+| **Health Diagnostics** | [https://pulsetrade-zygv.onrender.com/health](https://pulsetrade-zygv.onrender.com/health) | Live service status, database connectivity & memory metrics |
 
 ---
 
@@ -118,7 +130,7 @@ flowchart TB
 Experience PulseTrade with instant registration and demo portfolio seeding:
 
 ### 1. Instant Demo Portfolio Seeding
-1. Register or Log in to the [Trading Terminal](http://localhost:5173).
+1. Register or Log in to the [Trading Terminal](https://dashboard-lilac-nu-83.vercel.app) (or `http://localhost:5173` locally).
 2. Navigate to **Holdings** and click **"Load Demo Portfolio"**.
 3. Instantly loads a **₹50,000 simulated balance** and **12 active NSE equity holdings** with real-time price tickers.
 
@@ -131,7 +143,7 @@ Experience PulseTrade with instant registration and demo portfolio seeding:
 
 ## 🔑 Core Engineering & Business Logic Architecture
 
-### 1. Fail-Closed ACID MongoDB Transactions (GAP 1 & 2)
+### 1. Fail-Closed ACID MongoDB Transactions
 - **Multi-Document Session Transactions**: BUY and SELL operations run in strict MongoDB session transactions (`mongoose.startSession()`), guaranteeing all-or-nothing consistency across `UserModel` (funds), `HoldingModel` (portfolio), `OrderModel` (audit trail), and `TransactionModel` (financial ledger).
 - **Strict Fail-Closed Architecture**: If a database session cannot be acquired or if any document write fails, operations fail closed immediately with zero silent downgrade to non-transactional execution.
 - **BUY Validation**: The backend independently validates `available balance >= (qty * executedPrice)`. If insufficient, a `REJECTED` order is recorded in the audit trail without touching funds or holdings.
@@ -140,7 +152,7 @@ Experience PulseTrade with instant registration and demo portfolio seeding:
 ### 2. Concurrency Safety & Multi-Document Atomicity
 - Prevents double-spending and overselling under concurrent requests (e.g. concurrent BUY orders or parallel withdrawals) via atomic conditional writes (`{ _id: userId, funds: { $gte: totalCost } }` and `{ userId, name, qty: { $gte: qty } }`) executed within database transactions.
 
-### 3. Server-Authoritative Market Pricing & Honest Limit Orders (GAP 3 & 4)
+### 3. Server-Authoritative Market Pricing & Honest Limit Orders
 - **Authoritative Market Pricing**: Execution prices are strictly calculated server-side from live market feeds and predefined tradable instruments (`TRADABLE_SYMBOLS`), never trusting client-supplied execution prices.
 - **Tradable Symbols Whitelist**: Unregistered instruments or unsupported symbols are rejected immediately without fallback to client requested prices.
 - **Price Model Fields**: Distinguishes `requestedPrice` (client target price), `marketPrice` (server LTP), and `executedPrice` (actual simulated fill price).
@@ -149,7 +161,7 @@ Experience PulseTrade with instant registration and demo portfolio seeding:
   - `LIMIT BUY`: Only fills if `serverMarketPrice <= requestedPrice`; otherwise rejected with clear price feedback.
   - `LIMIT SELL`: Only fills if `serverMarketPrice >= requestedPrice`; otherwise rejected with clear price feedback.
 
-### 4. Hardened Payment Gateway & Strict Pending Validation (GAP 5)
+### 4. Hardened Payment Gateway & Strict Pending Validation
 - **Pre-Created Pending Order Guarantee**: Payment verification strictly requires a pre-existing server-created record with status `PENDING` belonging to `req.userId` with exact matching amount and valid HMAC-SHA256 signature.
 - **Production Fail-Closed Configuration**: In production, missing `RAZORPAY_KEY_ID` or `RAZORPAY_KEY_SECRET` immediately fails closed with a 500 error rather than entering simulation mode.
 - **Atomic Credit & Ledger**: Wallet balance increments and ledger write occur within a single database transaction, preventing balance/ledger divergence.
@@ -160,17 +172,14 @@ Experience PulseTrade with instant registration and demo portfolio seeding:
 - **Session Revocation**: Calling `POST /api/v1/auth/logout-all` increments `tokenVersion`, instantly invalidating all existing JWT sessions across all devices.
 - **Zero-Token Exposure**: Strict `HttpOnly: true` cookies with zero JWT tokens exposed in JSON payloads.
 - **Brute-Force & Flood Protection**: Dedicated sliding-window rate limiters for auth (10 req / 15m), orders (30 req / 1m), wallet operations (15 req / 1m), and global API (300 req / 15m).
-- **Process-Local Rate Limiter Design & Scalability Note**:
-  > [!NOTE]
-  > Rate limiting is currently implemented in-memory using an efficient process-local sliding-window `Map`. This provides zero-dependency, ultra-low-latency protection against brute-force and request bursts for single-instance or standalone container deployments. In a horizontally-scaled multi-instance cluster, a shared distributed store (such as Redis or Upstash using sliding logs or token buckets) would be integrated to synchronize limits across replica pods.
 - **Generic Auth Errors**: Both unknown users and bad passwords return `"Incorrect email address or password"` to prevent user enumeration.
 
-### 6. Clean Architectural Separation (GAP 8)
+### 6. Clean Architectural Separation
 - Strict separation of concerns across every domain:
   `Route -> Middleware -> Controller -> Service -> Model`
 - Controllers handle HTTP transport, while `AuthService`, `OrderService`, `HoldingService`, and `WalletService` encapsulate business logic.
 
-### 7. Strict User Isolation & Access Control (GAP 9)
+### 7. Strict User Isolation & Access Control
 - All authenticated endpoints (`/allOrders`, `/allHoldings`, `/allPositions`, `/user/funds`, `/user/transactions`, `/verify-razorpay-payment`) are strictly scoped to the authenticated `req.userId`.
 - Rigorously verified through integration tests ensuring User A can never read or mutate User B's portfolio or order records.
 
@@ -178,10 +187,10 @@ Experience PulseTrade with instant registration and demo portfolio seeding:
 - Dedicated currency utility (`util/currency.js`) provides standard 2-decimal rounded currency arithmetic and integer-paise conversion functions.
 - All wallet balances, order costs, and ledger records maintain exact mathematical consistency without race conditions.
 
-### 9. Transparent Market Data Presentation & Diagnostics
-- Accurately presented as a paper-trading platform that simulates trading using market data polled from Yahoo Finance, supplemented with synthetic micro-ticks outside market hours.
-- Structured error middleware mapping status codes (400, 401, 403, 404, 409, 429, 500) and JSON logging with correlation IDs (`X-Request-Id`).
-- Production health endpoint sanitized to prevent diagnostic information leaks.
+### 9. Real-Time Market Data & WebSocket Subscriptions
+- `MarketTickerService` streams live prices for 12 NSE stocks via Socket.IO.
+- Authenticated websocket handshake with user-specific notification rooms (`user_${userId}`).
+- Dynamic symbol subscription (`subscribe` / `unsubscribe` events) and resilient polling with synthetic micro-tick simulation outside market hours.
 
 ---
 
@@ -283,7 +292,7 @@ erDiagram
 
 ## 📡 API Reference (`/api/v1`)
 
-Access the interactive **Swagger UI** documentation at **[`http://localhost:3000/api-docs`](http://localhost:3000/api-docs)**.
+Access the interactive **Swagger UI** documentation at **[`https://pulsetrade-zygv.onrender.com/api-docs`](https://pulsetrade-zygv.onrender.com/api-docs)** (or `http://localhost:3000/api-docs` locally).
 
 | HTTP Method | Version 1 Path | Legacy Alias | Description | Auth Required | Rate Limited |
 |:---:|---|---|---|:---:|:---:|
@@ -293,7 +302,7 @@ Access the interactive **Swagger UI** documentation at **[`http://localhost:3000
 | `POST` | `/api/v1/auth/login` | `/login` | User login & HttpOnly session cookie issuance | ❌ | 🔒 (10 / 15m) |
 | `POST` | `/api/v1/auth/logout` | `/logout` | User logout & cookie clearance | ❌ | ❌ |
 | `POST` | `/api/v1/auth/logout-all` | `/logout-all` | Revoke all active sessions across all devices | 🔑 | ❌ |
-| `POST` | `/api/v1/auth/` | `/` | User session verification | 🔑 | ❌ |
+| `POST` | `/api/v1/auth/updateProfile` | `/updateProfile` | Update user profile bio & phone | 🔑 | ❌ |
 | `GET` | `/api/v1/orders/allOrders` | `/allOrders` | Retrieve user orders with pagination, filtering & sorting | 🔑 | ❌ |
 | `POST` | `/api/v1/orders/newOrders` | `/newOrders` | Submit transaction-safe BUY / SELL stock order | 🔑 | 🔒 (30 / 1m) |
 | `GET` | `/api/v1/holdings/allHoldings` | `/allHoldings` | Retrieve user stock holdings & cost basis | 🔑 | ❌ |
@@ -310,26 +319,67 @@ Access the interactive **Swagger UI** documentation at **[`http://localhost:3000
 
 ## 🧪 Test Coverage & Verification
 
-PulseTrade features a dual-layer automated test suite (API integration + Service-level unit/transaction rollback tests) with Jest and Supertest running against MongoDB:
+PulseTrade features a dual-layer automated test suite (**API integration** + **Service-level unit/transaction rollback tests**) with Jest and Supertest running against MongoDB:
 
 ```bash
 cd Backend
 npm test
 ```
 
-### Automated Test Breakdown
+### Automated Test Breakdown (17 Comprehensive Test Suites)
 
-| Test Suite | Critical Business Logic & Invariants Verified | Status |
-|---|---|:---:|
-| **Service-Level: BUY & Limit Logic** | Input validation (negative/fractional qty, invalid symbol), insufficient balance early rejection with `REJECTED` audit, fillable vs unfillable LIMIT orders, weighted cost basis (`avg`) calculations | ✅ Passed |
-| **Service-Level: SELL & Portfolio** | Unowned stock rejection, overselling rejection, unfillable LIMIT SELL rejection, partial SELL cost-basis preservation, complete SELL holding deletion (qty=0) | ✅ Passed |
-| **Service-Level: ACID Transaction Rollbacks** | Simulated database crashes during holding updates, user balance deduction, order logging, and ledger creation; verifies 100% atomic rollbacks without state leaks | ✅ Passed |
-| **Service-Level: Payment & Security** | Constant-time HMAC-SHA256 signature verification (`timingSafeEqual`), forged signature rejection, amount mismatch checks, cross-user verification blocking, idempotent replays | ✅ Passed |
-| **API: Health & Observability** | Health endpoint (`/health`), OpenAPI JSON, Swagger UI, `X-Request-Id` correlation tracking | ✅ Passed |
-| **API: Authentication & Security** | Signup validation, duplicate email rejection, HttpOnly cookies, zero-token JSON, generic login errors, `tokenVersion` multi-device session revocation | ✅ Passed |
-| **API: User Isolation** | User A cannot see or mutate User B's orders, holdings, positions, funds, or wallet transactions | ✅ Passed |
-| **API: Pagination & Filtering** | Pagination metadata (`page`, `limit`, `totalPages`), mode filter (`BUY`/`SELL`), symbol search, price/date sorting | ✅ Passed |
-| **API: Backward Compatibility** | Legacy root routes (`/allHoldings`, `/user/funds`, `/allOrders`, `/newOrders`) | ✅ Passed |
+| Test Suite File | Test Suite Name | Critical Business Logic & Invariants Verified | Status |
+|:---|:---|---|:---:|
+| `Backend/tests/api.test.js` | **1. System Health & Observability** | Health endpoint (`/health`), API mirror (`/api/v1/health`), OpenAPI JSON, Swagger UI, `X-Request-Id` correlation tracking | ✅ Verified |
+| `Backend/tests/api.test.js` | **2. Authentication & Security** | Signup validation, duplicate email rejection, HttpOnly cookies, zero-token JSON, generic login errors, `tokenVersion` multi-device session revocation | ✅ Verified |
+| `Backend/tests/api.test.js` | **3. Wallet & Margin Operations** | Deposit credit, available cash calculation, excessive withdrawal rejection, atomic ledger entry creation | ✅ Verified |
+| `Backend/tests/api.test.js` | **4. BUY Orders & Validation** | Input validation (negative/fractional qty, non-CNC product), insufficient balance rejection with `REJECTED` audit, honest LIMIT orders, MARKET BUY execution | ✅ Verified |
+| `Backend/tests/api.test.js` | **5. Portfolio Cost Basis Math** | Recalculation of weighted average purchase cost basis (`avg`) on sequential stock purchases | ✅ Verified |
+| `Backend/tests/api.test.js` | **6. SELL Orders & Concurrency** | Unowned stock rejection, overselling rejection, unfillable LIMIT SELL rejection, partial SELL cost-basis preservation, complete SELL holding deletion (qty=0) | ✅ Verified |
+| `Backend/tests/api.test.js` | **7. User Isolation & Access Control** | User A cannot view or mutate User B's orders, holdings, positions, funds, or wallet transactions | ✅ Verified |
+| `Backend/tests/api.test.js` | **8. Orders Pagination & Filtering** | Pagination metadata (`page`, `limit`, `totalOrders`), mode filter (`BUY`/`SELL`), date/symbol sorting | ✅ Verified |
+| `Backend/tests/api.test.js` | **9. Razorpay Security & Verification** | Server-side pending order check, cross-user order rejection, amount mismatch detection, tampered signature failure, valid HMAC-SHA256 credit, idempotent replay attack protection | ✅ Verified |
+| `Backend/tests/api.test.js` | **10. Compatibility & Ledger Queries** | Root alias routes (`/allHoldings`, `/user/funds`), paginated financial ledger queries (`/user/transactions`) | ✅ Verified |
+| `Backend/tests/api.test.js` | **11. ACID Rollback Verification** | Failure injection during BUY, SELL, and Wallet operations; verifies 100% atomic rollbacks without state leaks | ✅ Verified |
+| `Backend/tests/services.test.js` | **1. OrderService Input Guardrails** | Empty/invalid symbols, unsupported tradables, non-positive or non-integer quantities, non-CNC products | ✅ Verified |
+| `Backend/tests/services.test.js` | **2. OrderService BUY Execution** | Insufficient balance failure, LIMIT BUY market price comparisons, MARKET BUY balance deduction & holding creation | ✅ Verified |
+| `Backend/tests/services.test.js` | **3. OrderService SELL Execution** | Zero-share rejection, oversell rejection, LIMIT SELL price checks, partial vs complete sell holding cleanup | ✅ Verified |
+| `Backend/tests/services.test.js` | **4. Transaction Failure Semantics** | Simulated crash during holding creation, ledger creation, and user funds updates with strict session aborts | ✅ Verified |
+| `Backend/tests/services.test.js` | **5. WalletService Funds & Ledger** | Financial summary arithmetic (`availableCash`, `spentOnHoldings`, `totalNetWorth`), invalid input handling, ledger rollback | ✅ Verified |
+| `Backend/tests/services.test.js` | **6. Payment Verification & HMAC** | Missing parameter validation, constant-time HMAC check (`timingSafeEqual`), replay prevention, ledger writing | ✅ Verified |
+
+---
+
+## 🚀 CI/CD Pipeline (GitHub Actions)
+
+PulseTrade includes a continuous integration workflow ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) executing on every push and pull request to `main`:
+
+```mermaid
+flowchart LR
+    PUSH[Push / PR to main] --> BE[1. Backend Tests & DB Integration]
+    PUSH --> DASH[2. Build Trading Dashboard SPA]
+    PUSH --> FE[3. Build Marketing Portal SPA]
+
+    subgraph BackendJob [Backend Test Job]
+        MONGO_RUN["Start MongoDB 6.0 Replica Set (Docker)"]
+        MONGO_INIT["Initiate Replica Set (rs0)"]
+        BE_INSTALL["Install Dependencies (npm ci)"]
+        BE_TEST["Run Test Suite (npm test)"]
+        MONGO_RUN --> MONGO_INIT --> BE_INSTALL --> BE_TEST
+    end
+
+    subgraph DashboardJob [Dashboard Build Job]
+        DASH_INSTALL["npm ci"] --> DASH_BUILD["npm run build (Vite)"]
+    end
+
+    subgraph FrontendJob [Frontend Build Job]
+        FE_INSTALL["npm ci"] --> FE_BUILD["npm run build (Vite)"]
+    end
+
+    BE --> BackendJob
+    DASH --> DashboardJob
+    FE --> FrontendJob
+```
 
 ---
 
@@ -382,7 +432,8 @@ cd Trading-platform
 ```
 
 ### 3. Configure Environment Variables
-Copy `.env.example` in `Backend/` to `.env`:
+
+#### A. Backend (`Backend/.env`)
 ```env
 PORT=3000
 NODE_ENV=development
@@ -394,6 +445,18 @@ RAZORPAY_KEY_ID=rzp_test_your_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_secret
 FRONTEND_URL=http://localhost:5174
 DASHBOARD_URL=http://localhost:5173
+```
+
+#### B. Trading Dashboard (`dashboard/.env`)
+```env
+VITE_API_URL=http://localhost:3000
+VITE_LANDING_URL=http://localhost:5174
+```
+
+#### C. Marketing Portal (`frontend/.env`)
+```env
+VITE_API_URL=http://localhost:3000
+VITE_DASHBOARD_URL=http://localhost:5173
 ```
 
 ### 4. Run Services Locally
