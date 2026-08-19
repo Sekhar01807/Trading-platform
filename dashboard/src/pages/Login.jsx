@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { ToastContainer, toast } from "react-toastify";
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -51,24 +50,18 @@ const Login = () => {
         const cleanPass = (password || "");
 
         if (!cleanEmail) {
-            const err = "Please enter your email address.";
-            setFlashMessage({ type: "error", text: err });
-            toast.error(err);
+            setFlashMessage({ type: "error", text: "Please enter your email address." });
             return false;
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(cleanEmail)) {
-            const err = "Please enter a valid email address.";
-            setFlashMessage({ type: "error", text: err });
-            toast.error(err);
+            setFlashMessage({ type: "error", text: "Please enter a valid email address." });
             return false;
         }
 
         if (!cleanPass) {
-            const err = "Please enter your password.";
-            setFlashMessage({ type: "error", text: err });
-            toast.error(err);
+            setFlashMessage({ type: "error", text: "Please enter your password." });
             return false;
         }
 
@@ -97,22 +90,17 @@ const Login = () => {
 
             const { success, message } = data;
             if (success) {
-                const msg = message || "Welcome back to PulseTrade!";
-                setFlashMessage({ type: "success", text: msg });
-                toast.success(msg);
+                setFlashMessage({ type: "success", text: message || "Welcome back to PulseTrade!" });
                 setTimeout(() => {
                     navigate("/");
                 }, 500);
             } else {
-                const errMsg = message || "Incorrect email or password.";
-                setFlashMessage({ type: "error", text: errMsg });
-                toast.error(errMsg);
+                setFlashMessage({ type: "error", text: message || "Incorrect email address or password." });
             }
         } catch (error) {
             console.error("Login error:", error);
             const errMsg = error.response?.data?.message || "Login failed. Please check your credentials.";
             setFlashMessage({ type: "error", text: errMsg });
-            toast.error(errMsg);
         } finally {
             setIsSubmitting(false);
         }
@@ -139,7 +127,7 @@ const Login = () => {
                     Access your live stock watchlist, orders & portfolio terminal
                 </p>
 
-                {/* Modern Flash Alert Banner */}
+                {/* In-Form Flash Alert Banner (Single source of feedback, no popping toasts) */}
                 {flashMessage && (
                     <div className={`auth_flash_banner ${flashMessage.type}`} role="alert">
                         <div className="flash_icon_wrap">
@@ -225,16 +213,6 @@ const Login = () => {
                     Don't have an account? <Link to="/signup">Create Free Account</Link>
                 </div>
             </form>
-
-            <ToastContainer 
-                position="top-right"
-                autoClose={4000}
-                hideProgressBar={false}
-                newestOnTop
-                closeOnClick
-                pauseOnHover
-                theme="light"
-            />
         </div>
     );
 };

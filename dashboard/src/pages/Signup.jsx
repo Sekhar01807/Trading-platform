@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { ToastContainer, toast } from "react-toastify";
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
@@ -55,31 +54,23 @@ const Signup = () => {
         const cleanPass = (password || "");
 
         if (!cleanName || cleanName.length < 2) {
-            const err = "Please enter your name (minimum 2 characters).";
-            setFlashMessage({ type: "error", text: err });
-            toast.error(err);
+            setFlashMessage({ type: "error", text: "Please enter your name (minimum 2 characters)." });
             return false;
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!cleanEmail || !emailRegex.test(cleanEmail)) {
-            const err = "Please enter a valid email address.";
-            setFlashMessage({ type: "error", text: err });
-            toast.error(err);
+            setFlashMessage({ type: "error", text: "Please enter a valid email address." });
             return false;
         }
 
         if (!cleanPass || cleanPass.length < 8) {
-            const err = "Password must be at least 8 characters long.";
-            setFlashMessage({ type: "error", text: err });
-            toast.error(err);
+            setFlashMessage({ type: "error", text: "Password must be at least 8 characters long." });
             return false;
         }
 
         if (!/[a-zA-Z]/.test(cleanPass) || !/[\d\W]/.test(cleanPass)) {
-            const err = "Password must include both letters and numbers or symbols.";
-            setFlashMessage({ type: "error", text: err });
-            toast.error(err);
+            setFlashMessage({ type: "error", text: "Password must include both letters and numbers or symbols." });
             return false;
         }
 
@@ -109,22 +100,17 @@ const Signup = () => {
 
             const { success, message } = data;
             if (success) {
-                const msg = "Account created successfully! Entering trading terminal...";
-                setFlashMessage({ type: "success", text: msg });
-                toast.success(msg);
+                setFlashMessage({ type: "success", text: "Account created successfully! Entering trading terminal..." });
                 setTimeout(() => {
                     navigate("/");
                 }, 500);
             } else {
-                const errMsg = message || "Signup failed. Please try again.";
-                setFlashMessage({ type: "error", text: errMsg });
-                toast.error(errMsg);
+                setFlashMessage({ type: "error", text: message || "Signup failed. Please try again." });
             }
         } catch (error) {
             console.error("Signup error:", error);
             const errMsg = error.response?.data?.message || "Signup failed. Please check your details and try again.";
             setFlashMessage({ type: "error", text: errMsg });
-            toast.error(errMsg);
         } finally {
             setIsSubmitting(false);
         }
@@ -151,7 +137,7 @@ const Signup = () => {
                     Join PulseTrade for real-time paper trading & dynamic portfolio analytics
                 </p>
 
-                {/* Modern Flash Alert Banner */}
+                {/* In-Form Flash Alert Banner (Single source of feedback, no popping toasts) */}
                 {flashMessage && (
                     <div className={`auth_flash_banner ${flashMessage.type}`} role="alert">
                         <div className="flash_icon_wrap">
@@ -256,16 +242,6 @@ const Signup = () => {
                     Already have an account? <Link to="/login">Sign In</Link>
                 </div>
             </form>
-
-            <ToastContainer 
-                position="top-right"
-                autoClose={4000}
-                hideProgressBar={false}
-                newestOnTop
-                closeOnClick
-                pauseOnHover
-                theme="light"
-            />
         </div>
     );
 };
