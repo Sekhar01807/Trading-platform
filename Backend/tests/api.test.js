@@ -16,6 +16,8 @@ process.env.TOKEN_KEY = process.env.TOKEN_KEY || "PulseTrade_CI_Test_JWT_Secret_
 process.env.RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "pulsetrade_mock_test_secret_for_hmac_signatures";
 const RAZORPAY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
+jest.setTimeout(30000);
+
 describe("PulseTrade Paper-Trading Backend Test Suite", () => {
     let userA = null;
     let userACookie = "";
@@ -31,7 +33,7 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
         process.env.TOKEN_KEY = process.env.TOKEN_KEY || "PulseTrade_CI_Test_JWT_Secret_Key_2026!@#";
         await connectDB();
         await User.deleteMany({ email: /test_trader_.*@pulsetrade\.com/i });
-    });
+    }, 30000);
 
     afterAll(async () => {
         if (userA) {
@@ -43,7 +45,7 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
             await PaymentRecordModel.deleteMany({ userId: { $in: [userA._id, userB?._id].filter(Boolean) } });
         }
         await closeDB();
-    });
+    }, 30000);
 
     // ---------------------------------------------------------
     // 1. Health, Diagnostics, Swagger & Observability

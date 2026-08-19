@@ -17,6 +17,8 @@ process.env.TOKEN_KEY = process.env.TOKEN_KEY || "PulseTrade_CI_Test_JWT_Secret_
 process.env.RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "pulsetrade_mock_test_secret_for_hmac_signatures";
 const RAZORPAY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
+jest.setTimeout(30000);
+
 describe("PulseTrade Service-Level Business Logic & Transaction Test Suite", () => {
     let testUser = null;
     let testUser2 = null;
@@ -42,7 +44,7 @@ describe("PulseTrade Service-Level Business Logic & Transaction Test Suite", () 
             password: "HashedPassword123!",
             funds: 10000
         });
-    });
+    }, 30000);
 
     afterAll(async () => {
         if (testUser || testUser2) {
@@ -55,7 +57,7 @@ describe("PulseTrade Service-Level Business Logic & Transaction Test Suite", () 
             await PaymentRecordModel.deleteMany({ userId: { $in: userIds } });
         }
         await closeDB();
-    });
+    }, 30000);
 
     // =========================================================================
     // 1. ORDER SERVICE: INPUT VALIDATION & GUARDRAILS

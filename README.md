@@ -356,7 +356,24 @@ docker-compose up --build -d
 ### 1. Prerequisites
 - [Node.js](https://nodejs.org/) (v20+ LTS)
 - [Git](https://git-scm.com/)
-- [MongoDB Atlas](https://www.mongodb.com/atlas) account (or local MongoDB)
+- **MongoDB Database**: Either **[MongoDB Atlas](https://www.mongodb.com/atlas)** (Recommended — Replica Sets are enabled by default) OR a **Local MongoDB Replica Set** (Required for multi-document ACID transactions).
+
+> [!IMPORTANT]
+> **MongoDB Replica Set Requirement**:
+> PulseTrade uses MongoDB multi-document ACID transactions (`session.startTransaction()`) in `OrderService` and `WalletService` to guarantee strict balance and inventory consistency without race conditions.
+>
+> Transactions **require a Replica Set**. If running MongoDB locally on a standalone instance (`mongod`), transactions will fail with `Transaction numbers are only allowed on a replica set member or mongos`.
+>
+> **Quick Local Replica Set Setup (Choose one)**:
+> 1. **MongoDB Atlas (Easiest)**: Create a free tier M0 cluster on [MongoDB Atlas](https://www.mongodb.com/atlas) — it runs as a 3-node replica set automatically.
+> 2. **Docker One-Liner**:
+>    ```bash
+>    docker run -d --name pulsetrade-mongo -p 27017:27017 mongo:7.0 --replSet rs0
+>    docker exec -it pulsetrade-mongo mongosh --eval "rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]})"
+>    ```
+>    Connection URL: `mongodb://localhost:27017/pulsetrade?replicaSet=rs0&directConnection=true`
+> 3. **Native Local `mongod`**:
+>    Start `mongod` with `--replSet rs0` and run `rs.initiate()` in `mongosh`.
 
 ### 2. Clone the Repository
 ```bash
@@ -369,7 +386,9 @@ Copy `.env.example` in `Backend/` to `.env`:
 ```env
 PORT=3000
 NODE_ENV=development
+# Atlas URI or Local Replica Set URI:
 ATLASDB_URL=mongodb+srv://<user>:<password>@cluster.mongodb.net/pulsetrade
+# Or Local: mongodb://localhost:27017/pulsetrade?replicaSet=rs0&directConnection=true
 TOKEN_KEY=your_secure_jwt_secret_key_here
 RAZORPAY_KEY_ID=rzp_test_your_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_secret
