@@ -8,12 +8,9 @@ import { API_URL } from "../config";
 import "./BuyActionWindow.css";
 
 const BuyActionWindow = ({ uid, initialPrice = 0, closeBuyWindow }) => {
-  const defaultOrderType = localStorage.getItem("pulsetrade_orderType") || "MARKET";
-  const defaultQty = Number(localStorage.getItem("pulsetrade_defaultQty")) || 1;
-
   const [productType, setProductType] = useState("CNC"); // CNC, MIS
-  const [orderType, setOrderType] = useState(defaultOrderType); // MARKET, LIMIT
-  const [stockQuantity, setStockQuantity] = useState(defaultQty);
+  const [orderType, setOrderType] = useState("MARKET"); // MARKET, LIMIT
+  const [stockQuantity, setStockQuantity] = useState(1);
   const [liveLtp, setLiveLtp] = useState(initialPrice > 0 ? initialPrice : 1450.00);
   const [stockPrice, setStockPrice] = useState(initialPrice > 0 ? initialPrice : 1450.00);
   const [availableCash, setAvailableCash] = useState(0);
@@ -92,21 +89,8 @@ const BuyActionWindow = ({ uid, initialPrice = 0, closeBuyWindow }) => {
   };
 
   const handleBuyClick = async () => {
-    const finalPrice = orderType === "MARKET" ? liveLtp : (Number(stockPrice) > 0 ? Number(stockPrice) : liveLtp);
-    const estimatedTotal = (Number(stockQuantity) * finalPrice).toFixed(2);
-
-    // Check if order confirmation is enabled in Settings
-    const isConfirmationEnabled = localStorage.getItem("pulsetrade_orderConfirmation") === "true";
-    if (isConfirmationEnabled) {
-      const confirmed = window.confirm(
-        `Please confirm your order:\n\nAction: BUY\nInstrument: ${uid}\nQuantity: ${stockQuantity} shares\nOrder Type: ${orderType}\nPrice: ₹${finalPrice.toFixed(2)}\nEstimated Amount: ₹${estimatedTotal}\n\nDo you want to proceed?`
-      );
-      if (!confirmed) {
-        return;
-      }
-    }
-
     try {
+      const finalPrice = orderType === "MARKET" ? liveLtp : (Number(stockPrice) > 0 ? Number(stockPrice) : liveLtp);
       const totalMarginReq = Number(stockQuantity) * finalPrice;
 
       if (totalMarginReq > availableCash) {

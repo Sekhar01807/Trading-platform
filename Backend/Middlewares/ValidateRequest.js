@@ -35,31 +35,6 @@ const SCHEMAS = {
         return null;
     },
 
-    changePassword: (body) => {
-        const { currentPassword, newPassword } = body || {};
-        if (!currentPassword || typeof currentPassword !== "string") {
-            return "Current password is required";
-        }
-        if (!newPassword || typeof newPassword !== "string" || newPassword.length < 8) {
-            return "New password must be at least 8 characters long";
-        }
-        if (newPassword.length > 128) {
-            return "New password must not exceed 128 characters";
-        }
-        if (!/[a-zA-Z]/.test(newPassword) || !/[\d\W]/.test(newPassword)) {
-            return "New password must contain both letters and numbers or special characters";
-        }
-        return null;
-    },
-
-    deleteAccount: (body) => {
-        const { password } = body || {};
-        if (!password || typeof password !== "string") {
-            return "Password is required to confirm account deletion";
-        }
-        return null;
-    },
-
 
     placeOrder: (body) => {
         const { name, symbol, qty, quantity, price, requestedPrice, mode, side, productType, orderType } = body || {};

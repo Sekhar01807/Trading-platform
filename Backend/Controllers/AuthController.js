@@ -132,79 +132,10 @@ const UpdateProfile = async (req, res, next) => {
     }
 };
 
-const ChangePassword = async (req, res, next) => {
-    try {
-        const userId = req.userId || (req.user ? req.user._id : null);
-        if (!userId) {
-            return res.status(401).json({ message: "Unauthorized access", success: false });
-        }
-
-        const { currentPassword, newPassword } = req.body;
-        const result = await AuthService.changePassword(userId, { currentPassword, newPassword });
-
-        const isProduction = process.env.NODE_ENV === "production";
-        res.cookie("token", result.token, {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? "none" : "lax",
-            maxAge: 3 * 24 * 60 * 60 * 1000 // 3 days
-        });
-
-        res.status(200).json({
-            message: result.message,
-            success: true
-        });
-    } catch (error) {
-        if (error.statusCode) {
-            return res.status(error.statusCode).json({
-                message: error.message,
-                success: false
-            });
-        }
-        next(error);
-    }
-};
-
-const DeleteAccount = async (req, res, next) => {
-    try {
-        const userId = req.userId || (req.user ? req.user._id : null);
-        if (!userId) {
-            return res.status(401).json({ message: "Unauthorized access", success: false });
-        }
-
-        const { password } = req.body;
-        const result = await AuthService.deleteAccount(userId, { password });
-
-        const isProduction = process.env.NODE_ENV === "production";
-        res.clearCookie("token", {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? "none" : "lax",
-            path: "/"
-        });
-
-        res.status(200).json({
-            message: result.message,
-            success: true
-        });
-    } catch (error) {
-        if (error.statusCode) {
-            return res.status(error.statusCode).json({
-                message: error.message,
-                success: false
-            });
-        }
-        next(error);
-    }
-};
-
 module.exports = {
     Signup,
     Login,
     Logout,
     LogoutAll,
-    UpdateProfile,
-    ChangePassword,
-    DeleteAccount
+    UpdateProfile
 };
-

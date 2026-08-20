@@ -9,7 +9,6 @@ import Positions from "./Positions";
 import Summary from "./Summary";
 import WatchList from "./WatchList";
 import Profile from "./Profile";
-import Settings from "./Settings";
 import NotFound from "./NotFound";
 
 import { GeneralContextProvider } from "./GeneralContext";
@@ -27,7 +26,6 @@ const Dashboard = ({ user, onProfileUpdate, onUsernameUpdate }) => {
                         <Route path="/positions" element={<Positions />} />
                         <Route path="/funds" element={<Funds />} />
                         <Route path="/profile" element={<Profile user={user} onProfileUpdate={onProfileUpdate} onUsernameUpdate={onUsernameUpdate} />} />
-                        <Route path="/settings" element={<Settings user={user} />} />
                         <Route path="/apps" element={<Apps />} />
                         <Route path="*" element={<NotFound />} />
                     </Routes>
@@ -37,4 +35,4 @@ const Dashboard = ({ user, onProfileUpdate, onUsernameUpdate }) => {
     );
 };
 
-export default Dashboard;
+export default Dashboard;
