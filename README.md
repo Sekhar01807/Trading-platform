@@ -1,10 +1,10 @@
-# 📈 PulseTrade — Full-Stack Paper-Trading Platform
+# PulseTrade — Full-Stack Paper-Trading Platform
 
 > **Enterprise-grade full-stack paper-trading platform for simulated equity trading, real-time market data streaming, atomic financial ledgers, and portfolio management.**
 
 ---
 
-### 🛡️ Tech Stack & Badges
+### Tech Stack & Badges
 
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg?style=for-the-badge)](https://opensource.org/licenses/ISC)
 [![React 19](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
@@ -22,7 +22,7 @@
 
 ---
 
-### 🌐 Live Production Deployments
+### Live Production Deployments
 
 | Component | Production URL | Description |
 |:---|:---|:---|
@@ -39,93 +39,86 @@
 
 ---
 
-## 🏛️ System Architecture
+## System Architecture
 
-PulseTrade is structured with a clean, decoupled layered backend architecture:
-
-```
-                      React Client
-                         │
-                         ▼
-                 Axios / Socket.IO
-                         │
-                         ▼
-                 Express API Server
-                         │
-             ┌───────────┴───────────┐
-             │                       │
-        Auth Middleware        Validation
-             │                       │
-             └───────────┬───────────┘
-                         ▼
-                    Controllers
-                         │
-                         ▼
-                     Services
-                         │
-           ┌─────────────┼─────────────┐
-           │             │             │
-         Users         Orders       Portfolio
-           │             │             │
-           └─────────────┼─────────────┘
-                         ▼
-                     MongoDB
-                         │
-                         ▼
-                 Transaction Layer
-```
+PulseTrade is designed with a decoupled multi-tier architecture ensuring fail-closed operations, financial consistency, and sub-millisecond local latency:
 
 ```mermaid
 flowchart TB
-    subgraph ClientLayer [1. Client Presentation Layer]
-        FE["React 19 Marketing & Landing Portal"]
-        DASH["React 19 Trading Terminal"]
+    subgraph ClientLayer ["1. Client Presentation Layer"]
+        FE["Marketing Portal<br/>(React 19, Vite)"]
+        DASH["Trading Terminal SPA<br/>(React 19, Vite, Chart.js)"]
     end
 
-    subgraph SecurityLayer [2. Security & Middleware Layer]
-        SEC["Security Headers & CORS Allowlist"]
-        RL["Rate Limiters (Auth, Orders, Wallet)"]
-        LOG["Structured JSON Logger (X-Request-Id)"]
-        VAL["Centralized Declarative Validator"]
-        AUTH["JWT HttpOnly Cookie Auth Middleware (Token Revocation)"]
+    subgraph IngressLayer ["2. Ingress & Security Middleware"]
+        CORS["CORS Allowlist & Security Headers<br/>(Helmet, Credentials)"]
+        RL["Rate Limiters<br/>(Auth, Orders, Wallet, Global)"]
+        LOG["Structured JSON Logger<br/>(X-Request-Id Correlation)"]
+        VAL["Centralized Declarative Validator<br/>(Input Sanitization)"]
+        AUTH["JWT HttpOnly Cookie Auth Middleware<br/>(Token Revocation & Verification)"]
     end
 
-    subgraph ServiceLayer [3. Business Services Layer]
-        AUTH_SVC["AuthService: Hashing, Multi-Device Session Invalidation"]
-        ORDER_SVC["OrderService: Concurrency Safe BUY/SELL & Weighted Cost Basis"]
-        HOLDING_SVC["HoldingService: Holdings, Positions & Demo Seeding"]
-        WALLET_SVC["WalletService: Ledger Auditing & Razorpay Verification"]
-        TICKER_SVC["MarketTickerService: Live Market Data Streaming"]
+    subgraph ControllerLayer ["3. API Routing & Controllers"]
+        AUTH_CTRL["AuthController<br/>(/api/v1/auth)"]
+        ORDER_CTRL["OrderController<br/>(/api/v1/orders)"]
+        HOLD_CTRL["HoldingController<br/>(/api/v1/holdings)"]
+        WALL_CTRL["WalletController<br/>(/api/v1/wallet)"]
     end
 
-    subgraph DataLayer [4. Storage & Persistence Layer]
-        MONGO[("MongoDB Atlas")]
-        SOCKET[["Socket.IO Engine"]]
-        YAHOO["Yahoo Finance Market Data Feed"]
-        RZP["Razorpay Sandbox Gateway"]
+    subgraph ServiceLayer ["4. Domain Services Layer"]
+        AUTH_SVC["AuthService<br/>- Bcrypt Hashing (Salt 12)<br/>- Multi-Device Session Revocation"]
+        ORDER_SVC["OrderService<br/>- Concurrency-Safe BUY / SELL<br/>- Weighted Cost-Basis Recalculation<br/>- Honest LIMIT / MARKET Execution"]
+        HOLD_SVC["HoldingService<br/>- Portfolio Aggregation & Positions<br/>- Demo Data Seeding"]
+        WALL_SVC["WalletService<br/>- Cash Margins & Net Worth<br/>- Immutable Audit Ledger<br/>- Razorpay Signature Verification"]
+        TICKER_SVC["MarketTickerService<br/>- Real-Time Live Feed Polling<br/>- Micro-Tick Simulation Engine"]
     end
 
-    FE -->|REST API Calls| SEC
-    DASH -->|Axios Client Interceptors| SEC
-    DASH <-->|WebSocket Stream| SOCKET
+    subgraph TransactionLayer ["5. ACID Multi-Document Transaction Engine"]
+        TX_MGR["Mongoose Client Sessions<br/>(startSession -> withTransaction -> commit/abort)"]
+    end
 
-    SEC --> RL --> LOG --> VAL --> AUTH
-    AUTH --> AUTH_SVC
-    AUTH --> ORDER_SVC
-    AUTH --> HOLDING_SVC
-    AUTH --> WALLET_SVC
+    subgraph StorageLayer ["6. Storage & External Integrations"]
+        MONGO[("MongoDB Atlas Replica Set<br/>(Users, Holdings, Positions, Orders, Transactions)")]
+        SOCKET[["Socket.IO Engine<br/>(Real-Time Price Broadcasts)"]]
+        RZP["Razorpay Sandbox Gateway<br/>(HMAC-SHA256 Verification)"]
+        YAHOO["Market Data Feeds<br/>(NSE Live Feeds)"]
+    end
 
-    ORDER_SVC -->|Atomic Multi-Doc Session Transactions| MONGO
-    WALLET_SVC -->|Financial Audit Ledger| MONGO
-    WALLET_SVC -->|HMAC-SHA256 Verification| RZP
-    HOLDING_SVC -->|Holdings & Cost Basis| MONGO
-    TICKER_SVC -->|Market Data Polling| YAHOO
+    %% Client Traffic
+    FE -->|REST API Requests| CORS
+    DASH -->|Axios HTTP Requests| CORS
+    DASH <-->|WebSocket Connection| SOCKET
+
+    %% Middleware Pipeline
+    CORS --> RL --> LOG --> VAL --> AUTH
+
+    %% Routing
+    AUTH --> AUTH_CTRL
+    AUTH --> ORDER_CTRL
+    AUTH --> HOLD_CTRL
+    AUTH --> WALL_CTRL
+
+    %% Service Delegation
+    AUTH_CTRL --> AUTH_SVC
+    ORDER_CTRL --> ORDER_SVC
+    HOLD_CTRL --> HOLD_SVC
+    WALL_CTRL --> WALL_SVC
+
+    %% Persistence & Transactions
+    ORDER_SVC --> TX_MGR
+    WALL_SVC --> TX_MGR
+    HOLD_SVC --> MONGO
+    AUTH_SVC --> MONGO
+
+    TX_MGR -->|Atomic Multi-Doc Session Operations| MONGO
+    WALL_SVC -->|Payment Verification| RZP
+    TICKER_SVC -->|Market LTP Polling| YAHOO
     TICKER_SVC -->|Broadcast Price Ticks| SOCKET
 ```
 
 ---
 
-## ⚡ Quick Demo & Getting Started
+## Quick Demo & Getting Started
 
 Experience PulseTrade with instant registration and demo portfolio seeding:
 
@@ -141,7 +134,7 @@ Experience PulseTrade with instant registration and demo portfolio seeding:
 
 ---
 
-## 🔑 Core Engineering & Business Logic Architecture
+## Core Engineering & Business Logic Architecture
 
 ### 1. Fail-Closed ACID MongoDB Transactions
 - **Multi-Document Session Transactions**: BUY and SELL operations run in strict MongoDB session transactions (`mongoose.startSession()`), guaranteeing all-or-nothing consistency across `UserModel` (funds), `HoldingModel` (portfolio), `OrderModel` (audit trail), and `TransactionModel` (financial ledger).
@@ -194,7 +187,7 @@ Experience PulseTrade with instant registration and demo portfolio seeding:
 
 ---
 
-## 🗄️ Database Entity-Relationship (ER) Diagram
+## Database Entity-Relationship (ER) Diagram
 
 ```mermaid
 erDiagram
@@ -290,34 +283,34 @@ erDiagram
 
 ---
 
-## 📡 API Reference (`/api/v1`)
+## API Reference (`/api/v1`)
 
 Access the interactive **Swagger UI** documentation at **[`https://pulsetrade-zygv.onrender.com/api-docs`](https://pulsetrade-zygv.onrender.com/api-docs)** (or `http://localhost:3000/api-docs` locally).
 
 | HTTP Method | Version 1 Path | Legacy Alias | Description | Auth Required | Rate Limited |
 |:---:|---|---|---|:---:|:---:|
-| `GET` | `/api/v1/health` | `/health` | System diagnostics, uptime & DB ping latency | ❌ | ❌ |
-| `GET` | `/api-docs` | `/api-docs` | Interactive OpenAPI 3.0 Swagger UI | ❌ | ❌ |
-| `POST` | `/api/v1/auth/signup` | `/signup` | User account registration (sets HttpOnly cookie) | ❌ | 🔒 (10 / 15m) |
-| `POST` | `/api/v1/auth/login` | `/login` | User login & HttpOnly session cookie issuance | ❌ | 🔒 (10 / 15m) |
-| `POST` | `/api/v1/auth/logout` | `/logout` | User logout & cookie clearance | ❌ | ❌ |
-| `POST` | `/api/v1/auth/logout-all` | `/logout-all` | Revoke all active sessions across all devices | 🔑 | ❌ |
-| `POST` | `/api/v1/auth/updateProfile` | `/updateProfile` | Update user profile bio & phone | 🔑 | ❌ |
-| `GET` | `/api/v1/orders/allOrders` | `/allOrders` | Retrieve user orders with pagination, filtering & sorting | 🔑 | ❌ |
-| `POST` | `/api/v1/orders/newOrders` | `/newOrders` | Submit transaction-safe BUY / SELL stock order | 🔑 | 🔒 (30 / 1m) |
-| `GET` | `/api/v1/holdings/allHoldings` | `/allHoldings` | Retrieve user stock holdings & cost basis | 🔑 | ❌ |
-| `GET` | `/api/v1/holdings/allPositions` | `/allPositions` | Retrieve user active positions | 🔑 | ❌ |
-| `POST` | `/api/v1/holdings/seedDemoData` | `/seedDemoData` | Seed ₹50,000 demo portfolio with 12 stocks (Dev only) | 🔑 | ❌ |
-| `DELETE` | `/api/v1/holdings/resetPortfolio` | `/resetPortfolio` | Reset portfolio, orders & wallet to clean state (Dev only) | 🔑 | ❌ |
-| `GET` | `/api/v1/wallet/user/funds` | `/user/funds` | Fetch available cash margins & wallet balance | 🔑 | ❌ |
-| `POST` | `/api/v1/wallet/user/funds` | `/user/funds` | Deposit or withdraw funds from wallet | 🔑 | 🔒 (15 / 1m) |
-| `POST` | `/api/v1/wallet/create-razorpay-order` | `/create-razorpay-order` | Create Razorpay Sandbox test order | 🔑 | 🔒 (15 / 1m) |
-| `POST` | `/api/v1/wallet/verify-razorpay-payment` | `/verify-razorpay-payment` | Verify HMAC-SHA256 signature with idempotency | 🔑 | 🔒 (15 / 1m) |
-| `GET` | `/api/v1/wallet/user/transactions` | `/user/transactions` | Retrieve wallet audit transaction ledger | 🔑 | ❌ |
+| `GET` | `/api/v1/health` | `/health` | System diagnostics, uptime & DB ping latency | No | No |
+| `GET` | `/api-docs` | `/api-docs` | Interactive OpenAPI 3.0 Swagger UI | No | No |
+| `POST` | `/api/v1/auth/signup` | `/signup` | User account registration (sets HttpOnly cookie) | No | Yes (10 / 15m) |
+| `POST` | `/api/v1/auth/login` | `/login` | User login & HttpOnly session cookie issuance | No | Yes (10 / 15m) |
+| `POST` | `/api/v1/auth/logout` | `/logout` | User logout & cookie clearance | No | No |
+| `POST` | `/api/v1/auth/logout-all` | `/logout-all` | Revoke all active sessions across all devices | Yes | No |
+| `POST` | `/api/v1/auth/updateProfile` | `/updateProfile` | Update user profile bio & phone | Yes | No |
+| `GET` | `/api/v1/orders/allOrders` | `/allOrders` | Retrieve user orders with pagination, filtering & sorting | Yes | No |
+| `POST` | `/api/v1/orders/newOrders` | `/newOrders` | Submit transaction-safe BUY / SELL stock order | Yes | Yes (30 / 1m) |
+| `GET` | `/api/v1/holdings/allHoldings` | `/allHoldings` | Retrieve user stock holdings & cost basis | Yes | No |
+| `GET` | `/api/v1/holdings/allPositions` | `/allPositions` | Retrieve user active positions | Yes | No |
+| `POST` | `/api/v1/holdings/seedDemoData` | `/seedDemoData` | Seed ₹50,000 demo portfolio with 12 stocks (Dev only) | Yes | No |
+| `DELETE` | `/api/v1/holdings/resetPortfolio` | `/resetPortfolio` | Reset portfolio, orders & wallet to clean state (Dev only) | Yes | No |
+| `GET` | `/api/v1/wallet/user/funds` | `/user/funds` | Fetch available cash margins & wallet balance | Yes | No |
+| `POST` | `/api/v1/wallet/user/funds` | `/user/funds` | Deposit or withdraw funds from wallet | Yes | Yes (15 / 1m) |
+| `POST` | `/api/v1/wallet/create-razorpay-order` | `/create-razorpay-order` | Create Razorpay Sandbox test order | Yes | Yes (15 / 1m) |
+| `POST` | `/api/v1/wallet/verify-razorpay-payment` | `/verify-razorpay-payment` | Verify HMAC-SHA256 signature with idempotency | Yes | Yes (15 / 1m) |
+| `GET` | `/api/v1/wallet/user/transactions` | `/user/transactions` | Retrieve wallet audit transaction ledger | Yes | No |
 
 ---
 
-## 🧪 Test Coverage & Verification
+## Test Coverage & Verification
 
 PulseTrade features a dual-layer automated test suite (**API integration** + **Service-level unit/transaction rollback tests**) with Jest and Supertest running against MongoDB:
 
@@ -330,27 +323,27 @@ npm test
 
 | Test Suite File | Test Suite Name | Critical Business Logic & Invariants Verified | Status |
 |:---|:---|---|:---:|
-| `Backend/tests/api.test.js` | **1. System Health & Observability** | Health endpoint (`/health`), API mirror (`/api/v1/health`), OpenAPI JSON, Swagger UI, `X-Request-Id` correlation tracking | ✅ Verified |
-| `Backend/tests/api.test.js` | **2. Authentication & Security** | Signup validation, duplicate email rejection, HttpOnly cookies, zero-token JSON, generic login errors, `tokenVersion` multi-device session revocation | ✅ Verified |
-| `Backend/tests/api.test.js` | **3. Wallet & Margin Operations** | Deposit credit, available cash calculation, excessive withdrawal rejection, atomic ledger entry creation | ✅ Verified |
-| `Backend/tests/api.test.js` | **4. BUY Orders & Validation** | Input validation (negative/fractional qty, non-CNC product), insufficient balance rejection with `REJECTED` audit, honest LIMIT orders, MARKET BUY execution | ✅ Verified |
-| `Backend/tests/api.test.js` | **5. Portfolio Cost Basis Math** | Recalculation of weighted average purchase cost basis (`avg`) on sequential stock purchases | ✅ Verified |
-| `Backend/tests/api.test.js` | **6. SELL Orders & Concurrency** | Unowned stock rejection, overselling rejection, unfillable LIMIT SELL rejection, partial SELL cost-basis preservation, complete SELL holding deletion (qty=0) | ✅ Verified |
-| `Backend/tests/api.test.js` | **7. User Isolation & Access Control** | User A cannot view or mutate User B's orders, holdings, positions, funds, or wallet transactions | ✅ Verified |
-| `Backend/tests/api.test.js` | **8. Orders Pagination & Filtering** | Pagination metadata (`page`, `limit`, `totalOrders`), mode filter (`BUY`/`SELL`), date/symbol sorting | ✅ Verified |
-| `Backend/tests/api.test.js` | **9. Razorpay Security & Verification** | Server-side pending order check, cross-user order rejection, amount mismatch detection, tampered signature failure, valid HMAC-SHA256 credit, idempotent replay attack protection | ✅ Verified |
-| `Backend/tests/api.test.js` | **10. Compatibility & Ledger Queries** | Root alias routes (`/allHoldings`, `/user/funds`), paginated financial ledger queries (`/user/transactions`) | ✅ Verified |
-| `Backend/tests/api.test.js` | **11. ACID Rollback Verification** | Failure injection during BUY, SELL, and Wallet operations; verifies 100% atomic rollbacks without state leaks | ✅ Verified |
-| `Backend/tests/services.test.js` | **1. OrderService Input Guardrails** | Empty/invalid symbols, unsupported tradables, non-positive or non-integer quantities, non-CNC products | ✅ Verified |
-| `Backend/tests/services.test.js` | **2. OrderService BUY Execution** | Insufficient balance failure, LIMIT BUY market price comparisons, MARKET BUY balance deduction & holding creation | ✅ Verified |
-| `Backend/tests/services.test.js` | **3. OrderService SELL Execution** | Zero-share rejection, oversell rejection, LIMIT SELL price checks, partial vs complete sell holding cleanup | ✅ Verified |
-| `Backend/tests/services.test.js` | **4. Transaction Failure Semantics** | Simulated crash during holding creation, ledger creation, and user funds updates with strict session aborts | ✅ Verified |
-| `Backend/tests/services.test.js` | **5. WalletService Funds & Ledger** | Financial summary arithmetic (`availableCash`, `spentOnHoldings`, `totalNetWorth`), invalid input handling, ledger rollback | ✅ Verified |
-| `Backend/tests/services.test.js` | **6. Payment Verification & HMAC** | Missing parameter validation, constant-time HMAC check (`timingSafeEqual`), replay prevention, ledger writing | ✅ Verified |
+| `Backend/tests/api.test.js` | **1. System Health & Observability** | Health endpoint (`/health`), API mirror (`/api/v1/health`), OpenAPI JSON, Swagger UI, `X-Request-Id` correlation tracking | Passed |
+| `Backend/tests/api.test.js` | **2. Authentication & Security** | Signup validation, duplicate email rejection, HttpOnly cookies, zero-token JSON, generic login errors, `tokenVersion` multi-device session revocation | Passed |
+| `Backend/tests/api.test.js` | **3. Wallet & Margin Operations** | Deposit credit, available cash calculation, excessive withdrawal rejection, atomic ledger entry creation | Passed |
+| `Backend/tests/api.test.js` | **4. BUY Orders & Validation** | Input validation (negative/fractional qty, non-CNC product), insufficient balance rejection with `REJECTED` audit, honest LIMIT orders, MARKET BUY execution | Passed |
+| `Backend/tests/api.test.js` | **5. Portfolio Cost Basis Math** | Recalculation of weighted average purchase cost basis (`avg`) on sequential stock purchases | Passed |
+| `Backend/tests/api.test.js` | **6. SELL Orders & Concurrency** | Unowned stock rejection, overselling rejection, unfillable LIMIT SELL rejection, partial SELL cost-basis preservation, complete SELL holding deletion (qty=0) | Passed |
+| `Backend/tests/api.test.js` | **7. User Isolation & Access Control** | User A cannot view or mutate User B's orders, holdings, positions, funds, or wallet transactions | Passed |
+| `Backend/tests/api.test.js` | **8. Orders Pagination & Filtering** | Pagination metadata (`page`, `limit`, `totalOrders`), mode filter (`BUY`/`SELL`), date/symbol sorting | Passed |
+| `Backend/tests/api.test.js` | **9. Razorpay Security & Verification** | Server-side pending order check, cross-user order rejection, amount mismatch detection, tampered signature failure, valid HMAC-SHA256 credit, idempotent replay attack protection | Passed |
+| `Backend/tests/api.test.js` | **10. Compatibility & Ledger Queries** | Root alias routes (`/allHoldings`, `/user/funds`), paginated financial ledger queries (`/user/transactions`) | Passed |
+| `Backend/tests/api.test.js` | **11. ACID Rollback Verification** | Failure injection during BUY, SELL, and Wallet operations; verifies 100% atomic rollbacks without state leaks | Passed |
+| `Backend/tests/services.test.js` | **1. OrderService Input Guardrails** | Empty/invalid symbols, unsupported tradables, non-positive or non-integer quantities, non-CNC products | Passed |
+| `Backend/tests/services.test.js` | **2. OrderService BUY Execution** | Insufficient balance failure, LIMIT BUY market price comparisons, MARKET BUY balance deduction & holding creation | Passed |
+| `Backend/tests/services.test.js` | **3. OrderService SELL Execution** | Zero-share rejection, oversell rejection, LIMIT SELL price checks, partial vs complete sell holding cleanup | Passed |
+| `Backend/tests/services.test.js` | **4. Transaction Failure Semantics** | Simulated crash during holding creation, ledger creation, and user funds updates with strict session aborts | Passed |
+| `Backend/tests/services.test.js` | **5. WalletService Funds & Ledger** | Financial summary arithmetic (`availableCash`, `spentOnHoldings`, `totalNetWorth`), invalid input handling, ledger rollback | Passed |
+| `Backend/tests/services.test.js` | **6. Payment Verification & HMAC** | Missing parameter validation, constant-time HMAC check (`timingSafeEqual`), replay prevention, ledger writing | Passed |
 
 ---
 
-## 🚀 CI/CD Pipeline (GitHub Actions)
+## CI/CD Pipeline (GitHub Actions)
 
 PulseTrade includes a continuous integration workflow ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) executing on every push and pull request to `main`:
 
@@ -383,7 +376,7 @@ flowchart LR
 
 ---
 
-## 🐳 Production Docker Deployment
+## Production Docker Deployment
 
 PulseTrade includes a production-hardened multi-stage Docker containerization setup:
 
@@ -401,7 +394,7 @@ docker-compose up --build -d
 
 ---
 
-## 💻 Local Development Setup
+## Local Development Setup
 
 ### 1. Prerequisites
 - [Node.js](https://nodejs.org/) (v20+ LTS)
@@ -488,6 +481,6 @@ npm run dev
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the [ISC License](LICENSE).
