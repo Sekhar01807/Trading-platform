@@ -329,7 +329,7 @@ npm test
 | `Backend/tests/api.test.js` | **7. User Isolation & Access Control** | User A cannot view or mutate User B's orders, holdings, positions, funds, or wallet transactions | Passed |
 | `Backend/tests/api.test.js` | **8. Orders Pagination & Filtering** | Pagination metadata (`page`, `limit`, `totalOrders`), mode filter (`BUY`/`SELL`), date/symbol sorting | Passed |
 | `Backend/tests/api.test.js` | **9. Razorpay Security & Verification** | Server-side pending order check, cross-user order rejection, amount mismatch detection, tampered signature failure, valid HMAC-SHA256 credit, idempotent replay attack protection | Passed |
-| `Backend/tests/api.test.js` | **10. Compatibility & Ledger Queries** | Root alias routes (`/allHoldings`, `/user/funds`), paginated financial ledger queries (`/user/transactions`) | Passed |
+| `Backend/tests/api.test.js` | **10. Financial Ledger Queries** | Paginated financial audit ledger queries (`/api/v1/wallet/user/transactions`), sorting & transaction status invariants | Passed |
 | `Backend/tests/api.test.js` | **11. ACID Rollback Verification** | Failure injection during BUY, SELL, and Wallet operations; verifies 100% atomic rollbacks without state leaks | Passed |
 | `Backend/tests/services.test.js` | **1. OrderService Input Guardrails** | Empty/invalid symbols, unsupported tradables, non-positive or non-integer quantities, non-CNC products | Passed |
 | `Backend/tests/services.test.js` | **2. OrderService BUY Execution** | Insufficient balance failure, LIMIT BUY market price comparisons, MARKET BUY balance deduction & holding creation | Passed |
@@ -457,7 +457,7 @@ cd Backend
 npm ci
 npm run dev
 ```
-- API Health Check: `http://localhost:3000/health`
+- API Health Check: `http://localhost:3000/api/v1/health`
 - Interactive Swagger UI: `http://localhost:3000/api-docs`
 
 #### Start Dashboard Trading Terminal:
