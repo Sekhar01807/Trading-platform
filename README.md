@@ -476,8 +476,33 @@ npm run dev
 ```
 - Accessible at `http://localhost:5174`
 
+### 5. Run Test Suite
+
+PulseTrade features a modular, domain-driven test architecture comprising **13 dedicated test suites** across Integration, Domain Services, Security Middlewares, and ACID Transaction Rollback verification:
+
+```bash
+cd Backend
+npm test
+```
+
+| Layer | Test Suite | Scope & Invariants Verified |
+|:---|:---|:---|
+| **API Integration** | [`tests/integration/health.api.test.js`](file:///Backend/tests/integration/health.api.test.js) | Health diagnostics, MongoDB connectivity, memory telemetry, Swagger UI, `X-Request-Id` |
+| **API Integration** | [`tests/integration/auth.api.test.js`](file:///Backend/tests/integration/auth.api.test.js) | Signup validation, HttpOnly cookie issuance, generic 401 login, profile update, multi-device `logout-all` |
+| **API Integration** | [`tests/integration/orders.api.test.js`](file:///Backend/tests/integration/orders.api.test.js) | BUY/SELL validation, LIMIT price checks, MARKET executions, weighted cost basis, pagination, user isolation |
+| **API Integration** | [`tests/integration/holdings.api.test.js`](file:///Backend/tests/integration/holdings.api.test.js) | Portfolio holdings, intraday positions, user isolation, root backward-compatibility aliases |
+| **API Integration** | [`tests/integration/wallet.api.test.js`](file:///Backend/tests/integration/wallet.api.test.js) | Deposits, withdrawals, overdraft guard, Razorpay order creation, HMAC signature checks, idempotent replay |
+| **API Integration** | [`tests/integration/acid.rollback.test.js`](file:///Backend/tests/integration/acid.rollback.test.js) | Simulated database crash failure-injection verifying 100% ACID transaction abort & zero ledger leaks |
+| **Domain Services** | [`tests/services/auth.service.test.js`](file:///Backend/tests/services/auth.service.test.js) | Password hashing (Bcrypt Salt 12), email format regex, strength checks, token version increments |
+| **Domain Services** | [`tests/services/order.service.test.js`](file:///Backend/tests/services/order.service.test.js) | CNC validation, market price limits, atomic execution, weighted average price recalculation |
+| **Domain Services** | [`tests/services/wallet.service.test.js`](file:///Backend/tests/services/wallet.service.test.js) | Margin math, net worth aggregations, constant-time HMAC comparison, cross-user rejection |
+| **Domain Services** | [`tests/services/holding.service.test.js`](file:///Backend/tests/services/holding.service.test.js) | Demo data seeding (12 stocks, 2 positions, ₹50k margin), portfolio resets |
+| **Domain Services** | [`tests/services/ticker.service.test.js`](file:///Backend/tests/services/ticker.service.test.js) | Socket.IO handshake auth, price cache snapshot, dynamic symbol subscription engine |
+| **Middlewares** | [`tests/middlewares/rateLimiter.test.js`](file:///Backend/tests/middlewares/rateLimiter.test.js) | Sliding-window request tracking, 429 Too Many Requests enforcement, `Retry-After` headers |
+| **Middlewares** | [`tests/middlewares/authMiddleware.test.js`](file:///Backend/tests/middlewares/authMiddleware.test.js) | Cookie vs Bearer extraction, signature verification, revoked `tokenVersion` blocking |
 ---
 
 ## License
 
 This project is licensed under the [ISC License](LICENSE).
+
