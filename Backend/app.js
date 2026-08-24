@@ -57,7 +57,14 @@ v1Router.use("/wallet", walletRoute);
 v1Router.use("/health", getHealthStatus);
 app.use("/api/v1", v1Router);
 
-// 6. Centralized Error Handler Middleware
+// 6. Backward Compatibility Root Aliases (Legacy Endpoints)
+app.use("/", authRoute);
+app.use("/", orderRoute);
+app.use("/", holdingRoute);
+app.use("/", walletRoute);
+
+// 7. Centralized Error Handler Middleware
 app.use(errorHandler);
 
 module.exports = app;
+
