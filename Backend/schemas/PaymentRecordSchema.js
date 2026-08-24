@@ -37,8 +37,16 @@ const PaymentRecordSchema = new Schema({
     }
 });
 
-PaymentRecordSchema.index({ razorpay_payment_id: 1 }, { unique: true, sparse: true });
+PaymentRecordSchema.index(
+    { razorpay_payment_id: 1 }, 
+    { 
+        unique: true, 
+        sparse: true, 
+        partialFilterExpression: { razorpay_payment_id: { $type: "string" } } 
+    }
+);
 PaymentRecordSchema.index({ razorpay_order_id: 1 }, { unique: true });
 PaymentRecordSchema.index({ userId: 1, createdAt: -1 });
 
 module.exports = { PaymentRecordSchema };
+

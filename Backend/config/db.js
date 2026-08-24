@@ -55,8 +55,16 @@ const connectDB = async (url) => {
             maxPoolSize: 50
         });
 
+        try {
+            const { PaymentRecordModel } = require("../model/PaymentRecordModel");
+            await PaymentRecordModel.syncIndexes();
+        } catch (idxErr) {
+            logger.warn("[MongoDB] Index synchronization warning:", { message: idxErr.message });
+        }
+
         isConnecting = false;
         return conn;
+
     } catch (error) {
         isConnecting = false;
         logger.error("[MongoDB] Failed to connect to database:", { error: error.message });
