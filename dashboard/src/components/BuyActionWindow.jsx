@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import CloseIcon from '@mui/icons-material/Close';
-import axios from "axios";
 import { toast } from "react-toastify";
 import { io } from "socket.io-client";
 import { API_URL } from "../config";
+import { walletApi, ordersApi } from "../api/client";
 
 import "./BuyActionWindow.css";
 
@@ -21,7 +21,7 @@ const BuyActionWindow = ({ uid, initialPrice = 0, closeBuyWindow }) => {
   const dragStart = useRef({ x: 0, y: 0 });
 
   const fetchUserFunds = () => {
-    axios.get(`${API_URL}/user/funds`, { withCredentials: true })
+    walletApi.getFunds()
       .then((res) => {
         if (res.data && res.data.availableCash !== undefined) {
           setAvailableCash(res.data.availableCash);
@@ -97,21 +97,14 @@ const BuyActionWindow = ({ uid, initialPrice = 0, closeBuyWindow }) => {
         toast.warning("Margin required exceeds available cash in wallet!");
       }
 
-      await axios.post(
-        `${API_URL}/newOrders`,
-        {
-          name: uid,
-          qty: Number(stockQuantity),
-          price: finalPrice,
-          requestedPrice: finalPrice,
-          mode: "BUY",
-          productType,
-          orderType,
-        },
-        { 
-          withCredentials: true
-        }
-      );
+      await ordersApi.placeOrder({
+        name: uid,
+        qty: Number(stockQuantity),
+        price: finalPrice,
+        mode: "BUY",
+        productType,
+        orderType,
+      });
       toast.success(`Bought ${stockQuantity} share(s) of ${uid} @ ₹${finalPrice.toFixed(2)} (${productType})!`);
       window.dispatchEvent(new Event("portfolioUpdated"));
       closeBuyWindow();

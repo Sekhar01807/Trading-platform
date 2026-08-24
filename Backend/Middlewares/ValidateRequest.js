@@ -37,10 +37,10 @@ const SCHEMAS = {
 
 
     placeOrder: (body) => {
-        const { name, symbol, qty, quantity, price, requestedPrice, mode, side, productType, orderType } = body || {};
-        const stockSymbol = (name || symbol || "").toString().trim().toUpperCase();
-        const numQty = Number(qty || quantity);
-        const numPrice = Number(price || requestedPrice);
+        const { name, qty, price, mode, productType, orderType } = body || {};
+        const stockSymbol = (name || "").toString().trim().toUpperCase();
+        const numQty = Number(qty);
+        const numPrice = Number(price);
 
         if (!stockSymbol || stockSymbol.length === 0) {
             return "Valid stock symbol is required";
@@ -54,7 +54,7 @@ const SCHEMAS = {
         if (isNaN(numPrice) || numPrice <= 0) {
             return "Price must be a positive number";
         }
-        const orderMode = (mode || side || "").toString().toUpperCase();
+        const orderMode = (mode || "").toString().toUpperCase();
         if (orderMode !== "BUY" && orderMode !== "SELL") {
             return "Order mode must be either BUY or SELL";
         }

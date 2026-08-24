@@ -227,7 +227,6 @@ describe("PulseTrade Service-Level Business Logic & Transaction Test Suite", () 
                 name: "WIPRO",
                 qty: 2,
                 price: unfillableLimitPrice,
-                requestedPrice: unfillableLimitPrice,
                 mode: "BUY",
                 orderType: "LIMIT"
             })).rejects.toMatchObject({
@@ -253,7 +252,6 @@ describe("PulseTrade Service-Level Business Logic & Transaction Test Suite", () 
                 name: "WIPRO",
                 qty: 2,
                 price: fillableLimitPrice,
-                requestedPrice: fillableLimitPrice,
                 mode: "BUY",
                 orderType: "LIMIT"
             });
@@ -374,7 +372,6 @@ describe("PulseTrade Service-Level Business Logic & Transaction Test Suite", () 
                 name: "TATAPOWER",
                 qty: 2,
                 price: unfillableLimitPrice,
-                requestedPrice: unfillableLimitPrice,
                 mode: "SELL",
                 orderType: "LIMIT"
             })).rejects.toMatchObject({

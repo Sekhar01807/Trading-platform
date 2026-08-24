@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
-import { LANDING_URL, API_URL } from "../config";
+import { LANDING_URL } from "../config";
+import { walletApi, holdingsApi, ordersApi, authApi } from "../api/client";
 
 // Material UI Icons
 import PersonIcon from "@mui/icons-material/Person";
@@ -39,7 +39,7 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
     const [totalAddedFunds, setTotalAddedFunds] = useState(0);
 
     useEffect(() => {
-        axios.get(`${API_URL}/user/funds`, { withCredentials: true })
+        walletApi.getFunds()
             .then(res => {
                 if (res.data && res.data.totalAddedFunds !== undefined) {
                     setTotalAddedFunds(res.data.totalAddedFunds);
@@ -70,12 +70,15 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
 
     // Fetch user's real holdings and orders from backend
     useEffect(() => {
-        axios.get(`${API_URL}/allHoldings`, { withCredentials: true })
-            .then(res => setHoldings(res.data))
+        holdingsApi.getAllHoldings()
+            .then(res => setHoldings(res.data || []))
             .catch(() => {});
 
-        axios.get(`${API_URL}/allOrders`, { withCredentials: true })
-            .then(res => setOrders(res.data))
+        ordersApi.getAllOrders()
+            .then(res => {
+                const orderData = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+                setOrders(orderData);
+            })
             .catch(() => {});
     }, []);
 
@@ -119,7 +122,7 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
 
     const handleLogout = async () => {
         try {
-            await axios.post(`${API_URL}/logout`, {}, { withCredentials: true });
+            await authApi.logout();
         } catch (e) {
             // Ignore error on logout
         }

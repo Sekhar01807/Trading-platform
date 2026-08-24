@@ -43,7 +43,7 @@ app.get("/", (req, res) => {
         service: "PulseTrade Paper-Trading API",
         version: "1.0.0",
         documentation: "/api-docs",
-        health: "/health",
+        health: "/api/v1/health",
         v1BaseUrl: "/api/v1"
     });
 });
@@ -57,13 +57,7 @@ v1Router.use("/wallet", walletRoute);
 v1Router.use("/health", getHealthStatus);
 app.use("/api/v1", v1Router);
 
-// 6. Backward-Compatibility Root Route Aliases (Ensures legacy clients continue functioning seamlessly)
-app.use("/", authRoute);
-app.use("/", orderRoute);
-app.use("/", holdingRoute);
-app.use("/", walletRoute);
-
-// 7. Centralized Error Handler Middleware
+// 6. Centralized Error Handler Middleware
 app.use(errorHandler);
 
 module.exports = app;

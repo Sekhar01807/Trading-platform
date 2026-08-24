@@ -13,9 +13,18 @@ node_modules/
 .env.development.local
 .env.test.local
 .env.production.local
+Backend/.env
+Backend/.env.*
+frontend/.env
+frontend/.env.*
+dashboard/.env
+dashboard/.env.*
 # Explicitly keep example templates tracked
 !.env.example
 !*.env.example
+!Backend/.env.example
+!frontend/.env.example
+!dashboard/.env.example
 
 # Production & Build Outputs
 dist/
@@ -45,7 +54,7 @@ lerna-debug.log*
 *.sw?
 .fleet/
 
-# OS Generated Files
+# OS Generated Files & Reserved Names
 .DS_Store
 .DS_Store?
 ._*
@@ -53,3 +62,4 @@ lerna-debug.log*
 .Trashes
 ehthumbs.db
 Thumbs.db
+nul

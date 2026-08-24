@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import CloseIcon from '@mui/icons-material/Close';
-import axios from "axios";
 import { toast } from "react-toastify";
 import { io } from "socket.io-client";
 import { API_URL } from "../config";
+import { walletApi, holdingsApi, ordersApi } from "../api/client";
 
 import "./SellActionWindow.css";
 
@@ -22,7 +22,7 @@ const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
   const dragStart = useRef({ x: 0, y: 0 });
 
   const fetchData = () => {
-    axios.get(`${API_URL}/user/funds`, { withCredentials: true })
+    walletApi.getFunds()
       .then((res) => {
         if (res.data && res.data.availableCash !== undefined) {
           setAvailableCash(res.data.availableCash);
@@ -30,7 +30,7 @@ const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
       })
       .catch(() => {});
 
-    axios.get(`${API_URL}/allHoldings`, { withCredentials: true })
+    holdingsApi.getAllHoldings()
       .then((res) => {
         const holdings = res.data || [];
         const holdingItem = holdings.find((h) => h.name === uid);
@@ -103,21 +103,14 @@ const SellActionWindow = ({ uid, initialPrice = 0, closeSellWindow }) => {
   const handleSellClick = async () => {
     try {
       const finalPrice = orderType === "MARKET" ? liveLtp : (Number(stockPrice) > 0 ? Number(stockPrice) : liveLtp);
-      await axios.post(
-        `${API_URL}/newOrders`,
-        {
-          name: uid,
-          qty: Number(stockQuantity),
-          price: finalPrice,
-          requestedPrice: finalPrice,
-          mode: "SELL",
-          productType,
-          orderType,
-        },
-        { 
-          withCredentials: true
-        }
-      );
+      await ordersApi.placeOrder({
+        name: uid,
+        qty: Number(stockQuantity),
+        price: finalPrice,
+        mode: "SELL",
+        productType,
+        orderType,
+      });
       toast.success(`Sold ${stockQuantity} share(s) of ${uid} @ ₹${finalPrice.toFixed(2)} (${productType})!`);
       window.dispatchEvent(new Event("portfolioUpdated"));
       closeSellWindow();

@@ -239,15 +239,12 @@ erDiagram
         ObjectId _id PK
         ObjectId userId FK "Compound Indexes (userId + createdAt, userId + status)"
         string name "Stock Symbol"
-        string symbol "Symbol Alias"
         number qty "Order Quantity"
-        number quantity "Quantity Alias"
         number price "Execution Fill Price"
         number requestedPrice "Requested / Limit Price"
         number executedPrice "Simulated Fill Price"
         number marketPrice "Market LTP"
         string mode "BUY or SELL"
-        string side "BUY or SELL"
         string productType "CNC"
         string orderType "MARKET or LIMIT"
         string status "EXECUTED, FILLED, REJECTED, PENDING, CANCELLED"
@@ -258,14 +255,14 @@ erDiagram
 
     TRANSACTION {
         ObjectId _id PK
-        ObjectId userId FK "Compound Index (userId + createdAt)"
+        ObjectId userId FK "Indexed"
         string type "DEPOSIT, WITHDRAWAL, ORDER_BUY, ORDER_SELL"
-        number amount "Transaction INR Amount"
-        number balanceBefore "Balance Prior to Transaction"
-        number balanceAfter "Balance Post Transaction"
-        string status "SUCCESS, FAILED, PENDING"
-        string referenceId "Order ID / Razorpay Payment ID"
-        string description "Audit Log Details"
+        number amount "Transaction Amount"
+        number balanceBefore "Pre-trade Wallet Balance"
+        number balanceAfter "Post-trade Wallet Balance"
+        string status "SUCCESS, FAILED"
+        string referenceId "Order/Payment Reference"
+        string description "Audit log details"
         date createdAt "Indexed"
     }
 
@@ -287,26 +284,26 @@ erDiagram
 
 Access the interactive **Swagger UI** documentation at **[`https://pulsetrade-zygv.onrender.com/api-docs`](https://pulsetrade-zygv.onrender.com/api-docs)** (or `http://localhost:3000/api-docs` locally).
 
-| HTTP Method | Version 1 Path | Legacy Alias | Description | Auth Required | Rate Limited |
-|:---:|---|---|---|:---:|:---:|
-| `GET` | `/api/v1/health` | `/health` | System diagnostics, uptime & DB ping latency | No | No |
-| `GET` | `/api-docs` | `/api-docs` | Interactive OpenAPI 3.0 Swagger UI | No | No |
-| `POST` | `/api/v1/auth/signup` | `/signup` | User account registration (sets HttpOnly cookie) | No | Yes (10 / 15m) |
-| `POST` | `/api/v1/auth/login` | `/login` | User login & HttpOnly session cookie issuance | No | Yes (10 / 15m) |
-| `POST` | `/api/v1/auth/logout` | `/logout` | User logout & cookie clearance | No | No |
-| `POST` | `/api/v1/auth/logout-all` | `/logout-all` | Revoke all active sessions across all devices | Yes | No |
-| `POST` | `/api/v1/auth/updateProfile` | `/updateProfile` | Update user profile bio & phone | Yes | No |
-| `GET` | `/api/v1/orders/allOrders` | `/allOrders` | Retrieve user orders with pagination, filtering & sorting | Yes | No |
-| `POST` | `/api/v1/orders/newOrders` | `/newOrders` | Submit transaction-safe BUY / SELL stock order | Yes | Yes (30 / 1m) |
-| `GET` | `/api/v1/holdings/allHoldings` | `/allHoldings` | Retrieve user stock holdings & cost basis | Yes | No |
-| `GET` | `/api/v1/holdings/allPositions` | `/allPositions` | Retrieve user active positions | Yes | No |
-| `POST` | `/api/v1/holdings/seedDemoData` | `/seedDemoData` | Seed ₹50,000 demo portfolio with 12 stocks (Dev only) | Yes | No |
-| `DELETE` | `/api/v1/holdings/resetPortfolio` | `/resetPortfolio` | Reset portfolio, orders & wallet to clean state (Dev only) | Yes | No |
-| `GET` | `/api/v1/wallet/user/funds` | `/user/funds` | Fetch available cash margins & wallet balance | Yes | No |
-| `POST` | `/api/v1/wallet/user/funds` | `/user/funds` | Deposit or withdraw funds from wallet | Yes | Yes (15 / 1m) |
-| `POST` | `/api/v1/wallet/create-razorpay-order` | `/create-razorpay-order` | Create Razorpay Sandbox test order | Yes | Yes (15 / 1m) |
-| `POST` | `/api/v1/wallet/verify-razorpay-payment` | `/verify-razorpay-payment` | Verify HMAC-SHA256 signature with idempotency | Yes | Yes (15 / 1m) |
-| `GET` | `/api/v1/wallet/user/transactions` | `/user/transactions` | Retrieve wallet audit transaction ledger | Yes | No |
+| HTTP Method | Endpoint Path | Description | Auth Required | Rate Limited |
+|:---:|---|---|:---:|:---:|
+| `GET` | `/api/v1/health` | System diagnostics, uptime & DB ping latency | No | No |
+| `GET` | `/api-docs` | Interactive OpenAPI 3.0 Swagger UI | No | No |
+| `POST` | `/api/v1/auth/signup` | User account registration (sets HttpOnly cookie) | No | Yes (10 / 15m) |
+| `POST` | `/api/v1/auth/login` | User login & HttpOnly session cookie issuance | No | Yes (10 / 15m) |
+| `POST` | `/api/v1/auth/logout` | User logout & cookie clearance | No | No |
+| `POST` | `/api/v1/auth/logout-all` | Revoke all active sessions across all devices | Yes | No |
+| `POST` | `/api/v1/auth/updateProfile` | Update user profile bio & phone | Yes | No |
+| `GET` | `/api/v1/orders/allOrders` | Retrieve user orders with pagination, filtering & sorting | Yes | No |
+| `POST` | `/api/v1/orders/newOrders` | Submit transaction-safe BUY / SELL stock order | Yes | Yes (30 / 1m) |
+| `GET` | `/api/v1/holdings/allHoldings` | Retrieve user stock holdings & cost basis | Yes | No |
+| `GET` | `/api/v1/holdings/allPositions` | Retrieve user active positions | Yes | No |
+| `POST` | `/api/v1/holdings/seedDemoData` | Seed ₹50,000 demo portfolio with 12 stocks (Dev only) | Yes | No |
+| `DELETE` | `/api/v1/holdings/resetPortfolio` | Reset portfolio, orders & wallet to clean state (Dev only) | Yes | No |
+| `GET` | `/api/v1/wallet/user/funds` | Fetch available cash margins & wallet balance | Yes | No |
+| `POST` | `/api/v1/wallet/user/funds` | Deposit or withdraw funds from wallet | Yes | Yes (15 / 1m) |
+| `POST` | `/api/v1/wallet/create-razorpay-order` | Create Razorpay Sandbox test order | Yes | Yes (15 / 1m) |
+| `POST` | `/api/v1/wallet/verify-razorpay-payment` | Verify HMAC-SHA256 signature with idempotency | Yes | Yes (15 / 1m) |
+| `GET` | `/api/v1/wallet/user/transactions` | Retrieve wallet audit transaction ledger | Yes | No |
 
 ---
 

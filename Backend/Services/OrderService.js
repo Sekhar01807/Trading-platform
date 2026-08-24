@@ -16,20 +16,16 @@ class OrderService {
     static async executeOrder({
         userId,
         name,
-        symbol,
         qty,
-        quantity,
         price,
-        requestedPrice,
         mode,
-        side,
         productType = PRODUCT_TYPE.CNC,
         orderType = ORDER_TYPE.MARKET
     }) {
-        const stockSymbol = (name || symbol || "").trim().toUpperCase();
-        const orderQty = Number(qty || quantity);
-        const clientRequestedPrice = Number(requestedPrice || price);
-        const orderMode = (mode || side || "").trim().toUpperCase();
+        const stockSymbol = (name || "").trim().toUpperCase();
+        const orderQty = Number(qty);
+        const clientRequestedPrice = Number(price);
+        const orderMode = (mode || "").trim().toUpperCase();
         const cleanProductType = (productType || PRODUCT_TYPE.CNC).toString().trim().toUpperCase();
         const cleanOrderType = Object.values(ORDER_TYPE).includes(orderType?.toUpperCase())
             ? orderType.toUpperCase()
@@ -91,15 +87,12 @@ class OrderService {
                     const rejectedOrder = await OrderModel.create({
                         userId,
                         name: stockSymbol,
-                        symbol: stockSymbol,
                         qty: orderQty,
-                        quantity: orderQty,
                         price: normalizedRequestedPrice,
                         requestedPrice: normalizedRequestedPrice,
                         executedPrice: 0,
                         marketPrice: serverMarketPrice,
                         mode: ORDER_MODE.BUY,
-                        side: ORDER_MODE.BUY,
                         productType: cleanProductType,
                         orderType: cleanOrderType,
                         status: ORDER_STATUS.REJECTED,
@@ -129,15 +122,12 @@ class OrderService {
                     const rejectedOrder = await OrderModel.create({
                         userId,
                         name: stockSymbol,
-                        symbol: stockSymbol,
                         qty: orderQty,
-                        quantity: orderQty,
                         price: normalizedRequestedPrice,
                         requestedPrice: normalizedRequestedPrice,
                         executedPrice: 0,
                         marketPrice: serverMarketPrice,
                         mode: ORDER_MODE.SELL,
-                        side: ORDER_MODE.SELL,
                         productType: cleanProductType,
                         orderType: cleanOrderType,
                         status: ORDER_STATUS.REJECTED,
@@ -210,15 +200,12 @@ class OrderService {
             const rejectedOrder = await OrderModel.create({
                 userId,
                 name,
-                symbol: name,
                 qty,
-                quantity: qty,
                 price: executedPrice,
                 requestedPrice,
                 executedPrice: 0,
                 marketPrice,
                 mode: ORDER_MODE.BUY,
-                side: ORDER_MODE.BUY,
                 productType,
                 orderType,
                 status: ORDER_STATUS.REJECTED,
@@ -299,15 +286,12 @@ class OrderService {
                 [{
                     userId,
                     name,
-                    symbol: name,
                     qty,
-                    quantity: qty,
                     price: executedPrice,
                     requestedPrice,
                     executedPrice,
                     marketPrice,
                     mode: ORDER_MODE.BUY,
-                    side: ORDER_MODE.BUY,
                     productType,
                     orderType,
                     status: ORDER_STATUS.EXECUTED,
@@ -371,15 +355,12 @@ class OrderService {
             const rejectedOrder = await OrderModel.create({
                 userId,
                 name,
-                symbol: name,
                 qty,
-                quantity: qty,
                 price: executedPrice,
                 requestedPrice,
                 executedPrice: 0,
                 marketPrice,
                 mode: ORDER_MODE.SELL,
-                side: ORDER_MODE.SELL,
                 productType,
                 orderType,
                 status: ORDER_STATUS.REJECTED,
@@ -441,15 +422,12 @@ class OrderService {
                 [{
                     userId,
                     name,
-                    symbol: name,
                     qty,
-                    quantity: qty,
                     price: executedPrice,
                     requestedPrice,
                     executedPrice,
                     marketPrice,
                     mode: ORDER_MODE.SELL,
-                    side: ORDER_MODE.SELL,
                     productType,
                     orderType,
                     status: ORDER_STATUS.EXECUTED,

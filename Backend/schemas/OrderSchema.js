@@ -14,18 +14,9 @@ const OrderSchema = new Schema({
         uppercase: true,
         trim: true
     },
-    symbol: {
-        type: String,
-        uppercase: true,
-        trim: true
-    },
     qty: { 
         type: Number, 
         required: [true, "Order quantity is required"],
-        min: [1, "Order quantity must be at least 1"]
-    },
-    quantity: {
-        type: Number,
         min: [1, "Order quantity must be at least 1"]
     },
     price: { 
@@ -49,10 +40,6 @@ const OrderSchema = new Schema({
         type: String, 
         enum: Object.values(ORDER_MODE),
         required: [true, "Order mode (BUY or SELL) is required"]
-    },
-    side: {
-        type: String,
-        enum: Object.values(ORDER_MODE)
     },
     productType: {
         type: String,

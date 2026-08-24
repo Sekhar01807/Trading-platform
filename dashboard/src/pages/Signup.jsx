@@ -10,7 +10,7 @@ import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CloseIcon from '@mui/icons-material/Close';
-import { API_URL } from "../config";
+import { authApi } from "../api/client";
 import "./Auth.css";
 
 const Signup = () => {
@@ -27,7 +27,7 @@ const Signup = () => {
     const { email, password, username } = inputValue;
 
     React.useEffect(() => {
-        axios.post(API_URL, {}, { withCredentials: true })
+        authApi.verifySession()
             .then(({ data }) => {
                 if (data && data.status) {
                     navigate("/", { replace: true });
@@ -88,15 +88,11 @@ const Signup = () => {
         setFlashMessage(null);
 
         try {
-            const { data } = await axios.post(
-                `${API_URL}/signup`,
-                {
-                    username: username.trim(),
-                    email: email.trim(),
-                    password,
-                },
-                { withCredentials: true }
-            );
+            const { data } = await authApi.signup({
+                username: username.trim(),
+                email: email.trim(),
+                password,
+            });
 
             const { success, message } = data;
             if (success) {

@@ -9,7 +9,7 @@ import LoginIcon from '@mui/icons-material/Login';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CloseIcon from '@mui/icons-material/Close';
-import { API_URL } from "../config";
+import { authApi } from "../api/client";
 import "./Auth.css";
 
 const Login = () => {
@@ -25,7 +25,7 @@ const Login = () => {
     const { email, password } = inputValue;
 
     React.useEffect(() => {
-        axios.post(API_URL, {}, { withCredentials: true })
+        authApi.verifySession()
             .then(({ data }) => {
                 if (data && data.status) {
                     navigate("/", { replace: true });
@@ -79,14 +79,10 @@ const Login = () => {
         setFlashMessage(null);
 
         try {
-            const { data } = await axios.post(
-                `${API_URL}/login`,
-                {
-                    email: email.trim(),
-                    password,
-                },
-                { withCredentials: true }
-            );
+            const { data } = await authApi.login({
+                email: email.trim(),
+                password,
+            });
 
             const { success, message } = data;
             if (success) {

@@ -5,7 +5,8 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import { LANDING_URL, API_URL } from "../config";
+import { LANDING_URL } from "../config";
+import { authApi } from "../api/client";
 
 const Menu = ({ user, onUsernameUpdate }) => {
     const location = useLocation();
@@ -25,7 +26,7 @@ const Menu = ({ user, onUsernameUpdate }) => {
 
     const handleLogout = async () => {
         try {
-            await axios.post(`${API_URL}/logout`, {}, { withCredentials: true });
+            await authApi.logout();
         } catch (e) {
             // Ignore error on logout call
         }

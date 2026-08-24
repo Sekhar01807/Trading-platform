@@ -1,10 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import Dashboard from "./Dashboard";
 import TopBar from "./TopBar";
-import { API_URL } from "../config";
+import { authApi } from "../api/client";
 
 const Home = () => {
     const navigate = useNavigate();
@@ -14,7 +13,7 @@ const Home = () => {
 
     const clearAuth = async () => {
         try {
-            await axios.post(`${API_URL}/logout`, {}, { withCredentials: true });
+            await authApi.logout();
         } catch (e) {
             // Ignore error on clearing session
         }
@@ -23,11 +22,7 @@ const Home = () => {
     useEffect(() => {
         const verifySession = async () => {
             try {
-                const { data } = await axios.post(
-                    API_URL,
-                    {},
-                    { withCredentials: true }
-                );
+                const { data } = await authApi.verifySession();
                 const { status, user: username, email, phone, bio, id, createdAt } = data;
                 if (status) {
                     const savedUsername = localStorage.getItem(`username_override_${id}`);
@@ -62,7 +57,7 @@ const Home = () => {
             });
 
             // Sync with backend MongoDB database
-            await axios.post(`${API_URL}/updateProfile`, {
+            await authApi.updateProfile({
                 id: user.id,
                 ...updatedFields
             });

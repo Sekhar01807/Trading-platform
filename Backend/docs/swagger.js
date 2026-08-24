@@ -13,10 +13,6 @@ const openApiSpec = {
         {
             url: "/api/v1",
             description: "Version 1 API (Primary)"
-        },
-        {
-            url: "/",
-            description: "Root API (Legacy Aliases)"
         }
     ],
     components: {

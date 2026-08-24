@@ -353,7 +353,6 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
                     name: "TATAPOWER",
                     qty: 5,
                     price: lowLimitPrice,
-                    requestedPrice: lowLimitPrice,
                     mode: "BUY",
                     orderType: "LIMIT"
                 });
@@ -381,7 +380,6 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
                     name: "TATAPOWER",
                     qty: 5,
                     price: highLimitPrice,
-                    requestedPrice: highLimitPrice,
                     mode: "BUY",
                     orderType: "LIMIT"
                 });
@@ -498,7 +496,6 @@ describe("PulseTrade Paper-Trading Backend Test Suite", () => {
                     name: "INFY",
                     qty: 2,
                     price: highLimitPrice,
-                    requestedPrice: highLimitPrice,
                     mode: "SELL",
                     orderType: "LIMIT"
                 });

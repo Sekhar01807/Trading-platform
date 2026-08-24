@@ -24,33 +24,19 @@ const placeOrder = async (req, res, next) => {
         const userId = req.userId;
         const {
             name,
-            symbol,
             qty,
-            quantity,
             price,
-            requestedPrice,
             mode,
-            side,
             productType,
             orderType
         } = req.body || {};
 
-        // Canonical normalization: resolve standard/legacy fields into canonical order request
-        const cleanSymbol = (symbol || name || "").toString().trim().toUpperCase();
-        const cleanQty = quantity !== undefined && quantity !== null && quantity !== "" ? quantity : qty;
-        const cleanPrice = requestedPrice !== undefined && requestedPrice !== null && requestedPrice !== "" ? requestedPrice : price;
-        const cleanSide = (side || mode || "").toString().trim().toUpperCase();
-
         const result = await OrderService.executeOrder({
             userId,
-            symbol: cleanSymbol,
-            name: cleanSymbol,
-            quantity: cleanQty,
-            qty: cleanQty,
-            price: cleanPrice,
-            requestedPrice: cleanPrice,
-            side: cleanSide,
-            mode: cleanSide,
+            name: (name || "").toString().trim().toUpperCase(),
+            qty: Number(qty),
+            price: Number(price),
+            mode: (mode || "").toString().trim().toUpperCase(),
             productType,
             orderType
         });
