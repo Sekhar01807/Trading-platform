@@ -167,6 +167,6 @@ describe("API Integration: Authentication, Sessions & Security", () => {
             .set("Cookie", userACookie);
 
         expect(res.statusCode).toBe(200);
-        expect(res.body.status).toBe(true);
+        expect(res.body.success).toBe(true);
     });
 });

@@ -108,11 +108,11 @@ describe("Domain Service: AuthService Unit Tests", () => {
         expect(updated.bio).toBe("Quantitative intraday algorithmic trader.");
     });
 
-    test("revokeAllSessions should increment tokenVersion", async () => {
+    test("signOutAllDevices should increment tokenVersion and revoke sessions", async () => {
         const userBefore = await User.findById(createdUserId);
         const versionBefore = userBefore.tokenVersion || 0;
 
-        const res = await AuthService.revokeAllSessions(createdUserId);
+        const res = await AuthService.signOutAllDevices(createdUserId);
         expect(res.status).toBe(true);
 
         const userAfter = await User.findById(createdUserId);
