@@ -166,7 +166,8 @@ describe("Domain Service: OrderService Business Logic & Transactions", () => {
         });
 
         test("LIMIT BUY rejected when limit price < market price", async () => {
-            const marketPrice = INITIAL_PRICES["WIPRO"] || 465.25;
+            const MarketTickerService = require("../../Services/MarketTickerService");
+            const marketPrice = MarketTickerService.getLivePrices()["WIPRO"] || INITIAL_PRICES["WIPRO"] || 465.25;
             const unfillableLimitPrice = Number((marketPrice - 50).toFixed(2));
 
             await expect(OrderService.executeOrder({
@@ -191,7 +192,8 @@ describe("Domain Service: OrderService Business Logic & Transactions", () => {
         });
 
         test("LIMIT BUY executes when limit price >= market price", async () => {
-            const marketPrice = INITIAL_PRICES["WIPRO"] || 465.25;
+            const MarketTickerService = require("../../Services/MarketTickerService");
+            const marketPrice = MarketTickerService.getLivePrices()["WIPRO"] || INITIAL_PRICES["WIPRO"] || 465.25;
             const fillableLimitPrice = Number((marketPrice + 50).toFixed(2));
 
             const result = await OrderService.executeOrder({
@@ -302,7 +304,8 @@ describe("Domain Service: OrderService Business Logic & Transactions", () => {
         });
 
         test("LIMIT SELL rejected when limit price > current market price", async () => {
-            const marketPrice = INITIAL_PRICES["TATAPOWER"] || 124.15;
+            const MarketTickerService = require("../../Services/MarketTickerService");
+            const marketPrice = MarketTickerService.getLivePrices()["TATAPOWER"] || INITIAL_PRICES["TATAPOWER"] || 124.15;
             const unfillableLimitPrice = Number((marketPrice + 500).toFixed(2));
 
             await expect(OrderService.executeOrder({
