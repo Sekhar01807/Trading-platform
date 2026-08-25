@@ -316,27 +316,23 @@ cd Backend
 npm test
 ```
 
-### Automated Test Breakdown (17 Comprehensive Test Suites)
+### Automated Test Breakdown (13 Domain-Driven Test Suites)
 
-| Test Suite File | Test Suite Name | Critical Business Logic & Invariants Verified | Status |
+| Layer | Test Suite File | Critical Business Logic & Invariants Verified | Status |
 |:---|:---|---|:---:|
-| `Backend/tests/api.test.js` | **1. System Health & Observability** | Health endpoint (`/health`), API mirror (`/api/v1/health`), OpenAPI JSON, Swagger UI, `X-Request-Id` correlation tracking | Passed |
-| `Backend/tests/api.test.js` | **2. Authentication & Security** | Signup validation, duplicate email rejection, HttpOnly cookies, zero-token JSON, generic login errors, `tokenVersion` multi-device session revocation | Passed |
-| `Backend/tests/api.test.js` | **3. Wallet & Margin Operations** | Deposit credit, available cash calculation, excessive withdrawal rejection, atomic ledger entry creation | Passed |
-| `Backend/tests/api.test.js` | **4. BUY Orders & Validation** | Input validation (negative/fractional qty, non-CNC product), insufficient balance rejection with `REJECTED` audit, honest LIMIT orders, MARKET BUY execution | Passed |
-| `Backend/tests/api.test.js` | **5. Portfolio Cost Basis Math** | Recalculation of weighted average purchase cost basis (`avg`) on sequential stock purchases | Passed |
-| `Backend/tests/api.test.js` | **6. SELL Orders & Concurrency** | Unowned stock rejection, overselling rejection, unfillable LIMIT SELL rejection, partial SELL cost-basis preservation, complete SELL holding deletion (qty=0) | Passed |
-| `Backend/tests/api.test.js` | **7. User Isolation & Access Control** | User A cannot view or mutate User B's orders, holdings, positions, funds, or wallet transactions | Passed |
-| `Backend/tests/api.test.js` | **8. Orders Pagination & Filtering** | Pagination metadata (`page`, `limit`, `totalOrders`), mode filter (`BUY`/`SELL`), date/symbol sorting | Passed |
-| `Backend/tests/api.test.js` | **9. Razorpay Security & Verification** | Server-side pending order check, cross-user order rejection, amount mismatch detection, tampered signature failure, valid HMAC-SHA256 credit, idempotent replay attack protection | Passed |
-| `Backend/tests/api.test.js` | **10. Financial Ledger Queries** | Paginated financial audit ledger queries (`/api/v1/wallet/user/transactions`), sorting & transaction status invariants | Passed |
-| `Backend/tests/api.test.js` | **11. ACID Rollback Verification** | Failure injection during BUY, SELL, and Wallet operations; verifies 100% atomic rollbacks without state leaks | Passed |
-| `Backend/tests/services.test.js` | **1. OrderService Input Guardrails** | Empty/invalid symbols, unsupported tradables, non-positive or non-integer quantities, non-CNC products | Passed |
-| `Backend/tests/services.test.js` | **2. OrderService BUY Execution** | Insufficient balance failure, LIMIT BUY market price comparisons, MARKET BUY balance deduction & holding creation | Passed |
-| `Backend/tests/services.test.js` | **3. OrderService SELL Execution** | Zero-share rejection, oversell rejection, LIMIT SELL price checks, partial vs complete sell holding cleanup | Passed |
-| `Backend/tests/services.test.js` | **4. Transaction Failure Semantics** | Simulated crash during holding creation, ledger creation, and user funds updates with strict session aborts | Passed |
-| `Backend/tests/services.test.js` | **5. WalletService Funds & Ledger** | Financial summary arithmetic (`availableCash`, `spentOnHoldings`, `totalNetWorth`), invalid input handling, ledger rollback | Passed |
-| `Backend/tests/services.test.js` | **6. Payment Verification & HMAC** | Missing parameter validation, constant-time HMAC check (`timingSafeEqual`), replay prevention, ledger writing | Passed |
+| **API Integration** | [`Backend/tests/integration/health.api.test.js`](Backend/tests/integration/health.api.test.js) | Health diagnostics (`/health`, `/api/v1/health`), MongoDB connectivity, memory telemetry, Swagger UI, `X-Request-Id` correlation tracking | Passed |
+| **API Integration** | [`Backend/tests/integration/auth.api.test.js`](Backend/tests/integration/auth.api.test.js) | Signup validation, duplicate email rejection, HttpOnly cookies, zero-token JSON, generic 401 login errors, profile update, multi-device `logout-all` session revocation | Passed |
+| **API Integration** | [`Backend/tests/integration/orders.api.test.js`](Backend/tests/integration/orders.api.test.js) | BUY/SELL validation, insufficient balance rejection, honest LIMIT orders, MARKET executions, weighted cost basis, pagination, sorting & user isolation | Passed |
+| **API Integration** | [`Backend/tests/integration/holdings.api.test.js`](Backend/tests/integration/holdings.api.test.js) | Portfolio holdings, intraday positions, user isolation, root backward-compatibility aliases | Passed |
+| **API Integration** | [`Backend/tests/integration/wallet.api.test.js`](Backend/tests/integration/wallet.api.test.js) | Deposit credit, available cash calculation, excessive withdrawal rejection, Razorpay order creation, HMAC signature checks, idempotent replay protection | Passed |
+| **API Integration** | [`Backend/tests/integration/acid.rollback.test.js`](Backend/tests/integration/acid.rollback.test.js) | Simulated database crash failure-injection verifying 100% ACID transaction abort & zero financial ledger leaks | Passed |
+| **Domain Services** | [`Backend/tests/services/auth.service.test.js`](Backend/tests/services/auth.service.test.js) | Password hashing (Bcrypt Salt 12), email format regex, password strength guardrails, token version increments | Passed |
+| **Domain Services** | [`Backend/tests/services/order.service.test.js`](Backend/tests/services/order.service.test.js) | Input guardrails, tradable symbol whitelist, CNC validation, market price comparisons, weighted average price recalculation, holding cleanup | Passed |
+| **Domain Services** | [`Backend/tests/services/wallet.service.test.js`](Backend/tests/services/wallet.service.test.js) | Financial summary arithmetic (`availableCash`, `spentOnHoldings`, `totalNetWorth`), constant-time HMAC comparison (`timingSafeEqual`), cross-user order rejection | Passed |
+| **Domain Services** | [`Backend/tests/services/holding.service.test.js`](Backend/tests/services/holding.service.test.js) | Demo data seeding (12 stocks, 2 positions, ₹50,000 cash margin), portfolio reset cleanup | Passed |
+| **Domain Services** | [`Backend/tests/services/ticker.service.test.js`](Backend/tests/services/ticker.service.test.js) | Socket.IO handshake auth, price cache snapshot, dynamic symbol subscription engine (`subscribe`/`unsubscribe`) | Passed |
+| **Middlewares** | [`Backend/tests/middlewares/rateLimiter.test.js`](Backend/tests/middlewares/rateLimiter.test.js) | Sliding-window request tracking, 429 Too Many Requests enforcement, `Retry-After` headers, test mode bypass | Passed |
+| **Middlewares** | [`Backend/tests/middlewares/authMiddleware.test.js`](Backend/tests/middlewares/authMiddleware.test.js) | Cookie vs Bearer extraction, signature verification, revoked `tokenVersion` blocking, user verification payload | Passed |
 
 ---
 
@@ -477,32 +473,15 @@ npm run dev
 - Accessible at `http://localhost:5174`
 
 ### 5. Run Test Suite
-
-PulseTrade features a modular, domain-driven test architecture comprising **13 dedicated test suites** across Integration, Domain Services, Security Middlewares, and ACID Transaction Rollback verification:
-
+Run the full 13-suite automated test matrix across API integration, domain services, security middlewares, and ACID rollback tests:
 ```bash
 cd Backend
 npm test
 ```
-
-| Layer | Test Suite | Scope & Invariants Verified |
-|:---|:---|:---|
-| **API Integration** | [`tests/integration/health.api.test.js`](file:///Backend/tests/integration/health.api.test.js) | Health diagnostics, MongoDB connectivity, memory telemetry, Swagger UI, `X-Request-Id` |
-| **API Integration** | [`tests/integration/auth.api.test.js`](file:///Backend/tests/integration/auth.api.test.js) | Signup validation, HttpOnly cookie issuance, generic 401 login, profile update, multi-device `logout-all` |
-| **API Integration** | [`tests/integration/orders.api.test.js`](file:///Backend/tests/integration/orders.api.test.js) | BUY/SELL validation, LIMIT price checks, MARKET executions, weighted cost basis, pagination, user isolation |
-| **API Integration** | [`tests/integration/holdings.api.test.js`](file:///Backend/tests/integration/holdings.api.test.js) | Portfolio holdings, intraday positions, user isolation, root backward-compatibility aliases |
-| **API Integration** | [`tests/integration/wallet.api.test.js`](file:///Backend/tests/integration/wallet.api.test.js) | Deposits, withdrawals, overdraft guard, Razorpay order creation, HMAC signature checks, idempotent replay |
-| **API Integration** | [`tests/integration/acid.rollback.test.js`](file:///Backend/tests/integration/acid.rollback.test.js) | Simulated database crash failure-injection verifying 100% ACID transaction abort & zero ledger leaks |
-| **Domain Services** | [`tests/services/auth.service.test.js`](file:///Backend/tests/services/auth.service.test.js) | Password hashing (Bcrypt Salt 12), email format regex, strength checks, token version increments |
-| **Domain Services** | [`tests/services/order.service.test.js`](file:///Backend/tests/services/order.service.test.js) | CNC validation, market price limits, atomic execution, weighted average price recalculation |
-| **Domain Services** | [`tests/services/wallet.service.test.js`](file:///Backend/tests/services/wallet.service.test.js) | Margin math, net worth aggregations, constant-time HMAC comparison, cross-user rejection |
-| **Domain Services** | [`tests/services/holding.service.test.js`](file:///Backend/tests/services/holding.service.test.js) | Demo data seeding (12 stocks, 2 positions, ₹50k margin), portfolio resets |
-| **Domain Services** | [`tests/services/ticker.service.test.js`](file:///Backend/tests/services/ticker.service.test.js) | Socket.IO handshake auth, price cache snapshot, dynamic symbol subscription engine |
-| **Middlewares** | [`tests/middlewares/rateLimiter.test.js`](file:///Backend/tests/middlewares/rateLimiter.test.js) | Sliding-window request tracking, 429 Too Many Requests enforcement, `Retry-After` headers |
-| **Middlewares** | [`tests/middlewares/authMiddleware.test.js`](file:///Backend/tests/middlewares/authMiddleware.test.js) | Cookie vs Bearer extraction, signature verification, revoked `tokenVersion` blocking |
+See the [Test Coverage & Verification](#test-coverage--verification) section above for the full architectural breakdown of all 13 test suites.
 ---
 
 ## License
 
-This project is licensed under the [ISC License](LICENSE).
+This project is licensed under the [ISC License](https://opensource.org/licenses/ISC).
 
