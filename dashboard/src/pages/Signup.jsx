@@ -11,6 +11,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CloseIcon from '@mui/icons-material/Close';
 import { authApi } from "../api/client";
+import { LANDING_URL } from "../config";
 import "./Auth.css";
 
 const Signup = () => {
@@ -114,8 +115,8 @@ const Signup = () => {
 
     return (
         <div className="form_container">
-            {/* PulseTrade Brand Header */}
-            <div className="auth_brand">
+            {/* PulseTrade Brand Header - Clickable Link to Landing Page */}
+            <a href={LANDING_URL} className="auth_brand" style={{ textDecoration: "none", cursor: "pointer" }}>
                 <img 
                     src="/logo.svg" 
                     alt="PulseTrade Logo" 
@@ -124,7 +125,7 @@ const Signup = () => {
                 <div className="auth_brand_title">
                     Pulse<span style={{ color: "#10B981" }}>Trade</span>
                 </div>
-            </div>
+            </a>
 
             {/* Registration Form Card */}
             <form onSubmit={handleSubmit} className="auth_form_card" noValidate>
@@ -236,6 +237,11 @@ const Signup = () => {
 
                 <div className="auth_footer_link">
                     Already have an account? <Link to="/login">Sign In</Link>
+                </div>
+                <div className="auth_footer_link" style={{ marginTop: "10px", fontSize: "0.85rem" }}>
+                    <a href={LANDING_URL} style={{ color: "#94A3B8", textDecoration: "none", transition: "color 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.color = "#3B82F6"} onMouseLeave={(e) => e.currentTarget.style.color = "#94A3B8"}>
+                        ← Return to Landing Page
+                    </a>
                 </div>
             </form>
         </div>
