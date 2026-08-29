@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "jest --runInBand --detectOpenHandles --forceExit --testTimeout=30000"
+    "test": "jest --runInBand --detectOpenHandles --forceExit --testTimeout=30000",
+    "db:clean": "node scripts/cleanDB.js",
+    "db:fresh": "node scripts/seedFreshDB.js",
+    "db:seed": "node scripts/seedFreshDB.js"
   },
   "keywords": [],
   "author": "",

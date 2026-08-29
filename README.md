@@ -426,11 +426,13 @@ NODE_ENV=development
 # Atlas URI or Local Replica Set URI:
 ATLASDB_URL=mongodb+srv://<user>:<password>@cluster.mongodb.net/pulsetrade
 # Or Local: mongodb://localhost:27017/pulsetrade?replicaSet=rs0&directConnection=true
+DB_NAME=pulsetrade
 TOKEN_KEY=your_secure_jwt_secret_key_here
 RAZORPAY_KEY_ID=rzp_test_your_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_secret
 FRONTEND_URL=http://localhost:5174
 DASHBOARD_URL=http://localhost:5173
+ALLOWED_ORIGINS=http://localhost:5174,http://localhost:5173
 ```
 
 #### B. Trading Dashboard (`dashboard/.env`)
@@ -479,6 +481,31 @@ cd Backend
 npm test
 ```
 See the [Test Coverage & Verification](#test-coverage--verification) section above for the full architectural breakdown of all 13 test suites.
+
+### 6. Database Management & Seeding Utilities
+
+PulseTrade includes dedicated scripts to reset, clean, and initialize a fresh database with pre-configured demo test accounts:
+
+#### A. Clean & Reset Database:
+Wipes all collections (`users`, `holdings`, `positions`, `orders`, `transactions`, `payment_records`), purges legacy orphan tables, and synchronizes all schema indexes:
+```bash
+cd Backend
+npm run db:clean
+```
+
+#### B. Initialize Fresh Database with Demo Account:
+Wipes existing records, synchronizes indexes, and provisions a verified demo user account with ₹50,000 margin balance and 12 NSE equity holdings:
+```bash
+cd Backend
+npm run db:fresh
+```
+
+**Default Demo Account Credentials:**
+- **Email:** `demo@pulsetrade.com`
+- **Password:** `DemoPassword123!`
+- **Initial Cash Margin:** `₹50,000.00`
+- **Seeded Holdings:** 12 active NSE equities (`BHARTIARTL`, `HDFCBANK`, `HINDUNILVR`, `INFY`, `ITC`, `KPITTECH`, `M&M`, `RELIANCE`, `SBIN`, `TATAPOWER`, `TCS`, `WIPRO`) + 2 intraday positions
+
 ---
 
 ## License

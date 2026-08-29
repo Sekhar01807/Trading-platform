@@ -41,7 +41,6 @@ PaymentRecordSchema.index(
     { razorpay_payment_id: 1 }, 
     { 
         unique: true, 
-        sparse: true, 
         partialFilterExpression: { razorpay_payment_id: { $type: "string" } } 
     }
 );
