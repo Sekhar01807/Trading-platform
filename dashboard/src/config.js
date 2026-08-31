@@ -30,5 +30,5 @@ export const API_URL = isLocalhost
 
 export const LANDING_URL = isLocalhost
     ? (import.meta.env.VITE_LANDING_URL && (import.meta.env.VITE_LANDING_URL.includes("localhost") || import.meta.env.VITE_LANDING_URL.includes("127.0.0.1")) ? import.meta.env.VITE_LANDING_URL : getLocalLandingUrl())
-    : (import.meta.env.VITE_LANDING_URL || "https://frontend-seven-phi-94.vercel.app");
+    : (import.meta.env.VITE_LANDING_URL || "https://pulsetrade-ten.vercel.app");
 

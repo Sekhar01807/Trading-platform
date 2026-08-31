@@ -27,7 +27,7 @@
 | Component | Production URL | Description |
 |:---|:---|:---|
 | **Trading Terminal** | [https://dashboard-lilac-nu-83.vercel.app](https://dashboard-lilac-nu-83.vercel.app) | React 19 / Vite SPA trading terminal for simulated portfolio management |
-| **Marketing Portal** | [https://frontend-seven-phi-94.vercel.app](https://frontend-seven-phi-94.vercel.app) | Landing page, feature walkthroughs, and onboarding portal |
+| **Marketing Portal** | [https://pulsetrade-ten.vercel.app](https://pulsetrade-ten.vercel.app) | Landing page, feature walkthroughs, and onboarding portal |
 | **Backend API** | [https://pulsetrade-zygv.onrender.com](https://pulsetrade-zygv.onrender.com) | Express 5 REST API & Socket.IO real-time price streaming engine |
 | **Swagger UI Docs** | [https://pulsetrade-zygv.onrender.com/api-docs](https://pulsetrade-zygv.onrender.com/api-docs) | Interactive OpenAPI 3.0 API documentation & test runner |
 | **Health Diagnostics** | [https://pulsetrade-zygv.onrender.com/health](https://pulsetrade-zygv.onrender.com/health) | Live service status, database connectivity & memory metrics |
