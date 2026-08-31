@@ -34,8 +34,85 @@
 
 ---
 
+### Platform Preview
+
+<p align="center">
+  <img src="frontend/public/Images/Screenshot%202026-08-29%20192352.png" alt="PulseTrade Marketing Landing Page" width="100%" />
+</p>
+<p align="center">
+  <img src="frontend/public/Images/Screenshot%202026-08-29%20192556.png" alt="PulseTrade Live Trading Terminal" width="100%" />
+</p>
+
+---
+
 > [!NOTE]
 > **Product Disclaimer & Scope**: **PulseTrade** is an educational paper-trading simulator and portfolio management application. It allows users to practice simulated equity delivery (CNC) trading and track virtual portfolios using market data feeds. It does **not** route live trades to real financial exchanges (such as NSE/BSE) and has no affiliation with Zerodha Broking Ltd. or any registered stock broker.
+
+---
+
+## Application UI & Visual Walkthrough
+
+Explore the key interfaces and user experiences across the PulseTrade ecosystem:
+
+### 1. Marketing Portal & User Onboarding
+Intuitive landing page featuring real-time feature overviews and secure HttpOnly cookie authentication.
+
+| Marketing Landing Page | User Registration |
+|:---:|:---:|
+| <img src="frontend/public/Images/Screenshot%202026-08-29%20192352.png" alt="PulseTrade Landing Page" width="100%"/> | <img src="frontend/public/Images/Screenshot%202026-08-29%20192458.png" alt="User Registration" width="100%"/> |
+
+| User Sign-In Portal |
+|:---:|
+| <img src="frontend/public/Images/Screenshot%202026-08-29%20192425.png" alt="User Sign-In" width="80%"/> |
+
+---
+
+### 2. Live Trading Terminal & Market Feeds
+Real-time Socket.IO market ticker streaming live prices for major indices (NIFTY 50, SENSEX) and 50-stock tradable watchlists.
+
+| Trading Terminal Overview & Margins | Real-Time Watchlist Feed |
+|:---:|:---:|
+| <img src="frontend/public/Images/Screenshot%202026-08-29%20192556.png" alt="Trading Terminal Dashboard" width="100%"/> | <img src="frontend/public/Images/feature_watchlist.png" alt="Live Watchlist Feed" width="100%"/> |
+
+---
+
+### 3. Market Depth, Technical Analytics & Order Execution
+Interactive technical charts, bid/ask depth visualization, and concurrency-safe BUY/SELL execution modals for MARKET and LIMIT orders.
+
+| Technical Analytics & Market Depth | Interactive Order Execution Modals |
+|:---:|:---:|
+| <img src="frontend/public/Images/feature_analytics.png" alt="Market Depth & Analytics" width="100%"/> | <img src="frontend/public/Images/feature_orders.png" alt="BUY and SELL Order Execution" width="100%"/> |
+
+---
+
+### 4. Portfolio, Holdings & Open Positions
+Multi-stock holdings ledger with automated weighted average cost-basis recalculation, daily/net P&L telemetry, intraday positions tracking, and dynamic asset allocation charts.
+
+| Portfolio Holdings Ledger (12 Stocks) | Open Intraday & Delivery Positions |
+|:---:|:---:|
+| <img src="frontend/public/Images/Screenshot%202026-08-29%20192648.png" alt="Holdings Portfolio" width="100%"/> | <img src="frontend/public/Images/Screenshot%202026-08-29%20192719.png" alt="Open Positions" width="100%"/> |
+
+| Dynamic Portfolio Performance & Asset Allocation |
+|:---:|
+| <img src="frontend/public/Images/feature_portfolio.png" alt="Portfolio Valuation & Allocation" width="80%"/> |
+
+---
+
+### 5. Funds Management & Razorpay Payment Gateway
+Real-time cash margin tracking, simulated deposits via Razorpay Sandbox with HMAC-SHA256 signature verification, and atomic balance ledger updates.
+
+| Funds & Capital Management Dashboard | Razorpay Sandbox Checkout Modal |
+|:---:|:---:|
+| <img src="frontend/public/Images/Screenshot%202026-08-29%20192744.png" alt="Funds & Margins Management" width="100%"/> | <img src="frontend/public/Images/Screenshot%202026-08-29%20193037.png" alt="Razorpay Sandbox Deposit" width="100%"/> |
+
+---
+
+### 6. User Profile & Account Analytics
+Comprehensive account management with unique client code identifiers, trading bio, session revocation controls, and overall portfolio metrics.
+
+| User Account Information | Account Overview & Quick Actions |
+|:---:|:---:|
+| <img src="frontend/public/Images/Screenshot%202026-08-29%20192815.png" alt="User Profile Details" width="100%"/> | <img src="frontend/public/Images/Screenshot%202026-08-29%20192841.png" alt="Account Metrics & Quick Actions" width="100%"/> |
 
 ---
 
