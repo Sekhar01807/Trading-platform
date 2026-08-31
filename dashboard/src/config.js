@@ -1,7 +1,12 @@
 // Centralized API & Service Configuration
 const isLocalhost = typeof window !== "undefined" && (
     window.location.hostname === "localhost" || 
-    window.location.hostname === "127.0.0.1"
+    window.location.hostname === "127.0.0.1" ||
+    window.location.hostname === "0.0.0.0" ||
+    window.location.hostname === "::1" ||
+    window.location.hostname.startsWith("192.168.") ||
+    window.location.hostname.startsWith("10.") ||
+    window.location.hostname.startsWith("172.")
 );
 
 const getLocalLandingUrl = () => {
@@ -26,3 +31,4 @@ export const API_URL = isLocalhost
 export const LANDING_URL = isLocalhost
     ? (import.meta.env.VITE_LANDING_URL && (import.meta.env.VITE_LANDING_URL.includes("localhost") || import.meta.env.VITE_LANDING_URL.includes("127.0.0.1")) ? import.meta.env.VITE_LANDING_URL : getLocalLandingUrl())
     : (import.meta.env.VITE_LANDING_URL || "https://frontend-seven-phi-94.vercel.app");
+

@@ -122,11 +122,19 @@ const Profile = ({ user, onProfileUpdate, onUsernameUpdate }) => {
 
     const handleLogout = async () => {
         try {
-            await authApi.logout();
+            if (user && user.id) {
+                localStorage.removeItem(`username_override_${user.id}`);
+                localStorage.removeItem(`profilePic_${user.id}`);
+            }
+            await Promise.race([
+                authApi.logout(),
+                new Promise((resolve) => setTimeout(resolve, 800))
+            ]);
         } catch (e) {
             // Ignore error on logout
+        } finally {
+            window.location.href = LANDING_URL;
         }
-        window.location.href = LANDING_URL;
     };
 
     const initials = user?.username
