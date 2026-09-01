@@ -34,85 +34,136 @@
 
 ---
 
-### Platform Preview
+## Visual Showcase & Application Walkthrough
+
+Explore the core user workflows, real-time trading interfaces, and financial management capabilities across the PulseTrade ecosystem:
+
+### 1. Marketing & Onboarding Portal
+The marketing landing page introduces PulseTrade's educational paper-trading simulator and portfolio analytics suite, offering seamless entry points to launch the trading terminal or authenticate into trader workspaces.
 
 <p align="center">
   <img src="frontend/public/Images/Screenshot%202026-08-29%20192352.png" alt="PulseTrade Marketing Landing Page" width="100%" />
 </p>
+
+- **Modern Responsive Design**: Built with React 19 and Vite with dark-mode aesthetic.
+- **Direct Workspace Launch**: Fast routing between the public marketing portal and the authenticated trading terminal SPA.
+- **Zero-Risk Simulation**: Clarifies educational sandbox scope for practicing equity trading.
+
+---
+
+### 2. Secure Trader Authentication (Sign In & Registration)
+PulseTrade implements enterprise-grade authentication utilizing **Bcrypt password hashing (Salt factor 12)** and **HttpOnly, SameSite, Secure JWT cookies**, ensuring complete defense against client-side script token theft (XSS).
+
+<p align="center">
+  <img src="frontend/public/Images/Screenshot%202026-08-29%20192425.png" alt="User Sign-In Portal" width="80%" />
+</p>
+
+<p align="center">
+  <img src="frontend/public/Images/Screenshot%202026-08-29%20192458.png" alt="User Registration Portal" width="80%" />
+</p>
+
+- **Anti-Enumeration Security**: Returns unified `"Incorrect email address or password"` error messages to prevent username/email scraping.
+- **Sliding-Window Rate Limiting**: Dedicated auth rate limiter enforcing 10 requests per 15-minute window against brute-force attacks.
+- **Automatic Identity Provisioning**: New sign-ups automatically receive a unique exchange Client Code (e.g. `PT-6A92C6`) and initialize isolated ledgers.
+
+---
+
+### 3. Live Trading Terminal & Real-Time Market Streaming
+The central command center provides real-time market data streaming, margin calculations, and instant portfolio telemetry.
+
 <p align="center">
   <img src="frontend/public/Images/Screenshot%202026-08-29%20192556.png" alt="PulseTrade Live Trading Terminal" width="100%" />
 </p>
+
+- **Real-Time Index Ticker**: Live streaming benchmark indices (**NIFTY 50** at `24,716.34`, **SENSEX** at `80,425.79`) with live percentage movements.
+- **50-Stock Watchlist Stream**: Paginated multi-stock watchlist streaming real-time micro-ticks via Socket.IO for top equities (`INFY`, `ONGC`, `TCS`, `KPITTECH`, `QUICKHEAL`, `WIPRO`, `M&M`, `RELIANCE`, `HUL`, `HDFCBANK`).
+- **Live Margin Telemetry**: Synchronous margin computation showing **Available Margin** (`₹29,578.45`), **Margins Used** (`₹20,421.55`), and **Initial Opening Balance** (`₹50,000.00`).
+- **Holdings Telemetry Card**: Live P&L performance overview (+₹7,147.74 / +35.00%), current asset valuation (`₹27,569.29`), and total invested capital (`₹20,421.55`).
+
+---
+
+### 4. Comprehensive Portfolio Holdings Ledger (12 Active Equities)
+The holdings engine tracks multi-stock portfolios with automated weighted average purchase price recalculation and Mark-to-Market (MTM) P&L updates.
+
+<p align="center">
+  <img src="frontend/public/Images/Screenshot%202026-08-29%20192648.png" alt="Portfolio Holdings Ledger" width="100%" />
+</p>
+
+- **12-Stock Portfolio Ledger**: Granular records for `BHARTIARTL`, `HDFCBANK`, `HINDUNILVR`, `INFY`, `ITC`, `KPITTECH`, `M&M`, `RELIANCE`, `SBIN`, `TATAPOWER`, `TCS`, and `WIPRO`.
+- **Weighted Average Cost Basis**: Server-side arithmetic calculates exact weighted average purchase costs on every BUY fill.
+- **Live Performance Badges**: Color-coded badges for Day Change % and Net Change % alongside real-time LTP changes.
+- **Aggregated Financial Telemetry**: Total Investment: `₹20,421.55` | Current Value: `₹27,600.09` | Net P&L: `+₹7,178.54 (+35.15%)`.
+
+---
+
+### 5. Open Positions & Intraday Trading
+Dynamic monitoring of active open intraday trades and short-term delivery positions.
+
+<p align="center">
+  <img src="frontend/public/Images/Screenshot%202026-08-29%20192719.png" alt="Open Positions" width="100%" />
+</p>
+
+- **Real-Time Position Tracking**: Dynamic view of active open positions (`EVEREADY`, `JUBLFOOD`) with quantity, average execution price, and live LTP.
+- **Unrealized MTM Tracking**: Live Mark-to-Market P&L calculations (`-₹14.02`, `-₹27.32`) synchronized with WebSocket price streams.
+- **Product Type Isolation**: Clean separation between long-term CNC delivery holdings and intraday positions.
+
+---
+
+### 6. Funds & Capital Management Hub
+Centralized wallet and margin management interface with double-entry balance verification.
+
+<p align="center">
+  <img src="frontend/public/Images/Screenshot%202026-08-29%20192744.png" alt="Funds and Capital Management" width="100%" />
+</p>
+
+- **Capital Telemetry Cards**: Instant visibility into Total Funds Added (`₹50,000.00`), Available Cash to Buy (`₹29,578.45`), Capital Spent on Stocks (`₹20,421.55`), Current Portfolio Valuation (`₹27,642.73`), and Net Gains (`+₹7,221.18 / +35.36%`).
+- **Direct Capital Operations**: Quick action triggers for simulated deposits and margin withdrawals.
+- **Immutable Transaction Ledger**: Comprehensive audit trail capturing deposits, withdrawals, order debits, and credits with pre-trade and post-trade balance snapshots.
+
+---
+
+### 7. Razorpay Sandbox Payment Gateway Checkout
+Simulated instant funds deposit flow powered by the official Razorpay Sandbox payment gateway.
+
+<p align="center">
+  <img src="frontend/public/Images/Screenshot%202026-08-29%20193037.png" alt="Razorpay Sandbox Checkout" width="100%" />
+</p>
+
+- **Multi-Rail Sandbox Checkout**: Embedded checkout modal supporting simulated Netbanking (SBI, HDFC, Bank of Baroda, Canara Bank, PNB, IDBI, Airtel Payments Bank), UPI, Cards, and Wallets.
+- **Pre-Order Validation Guarantee**: Verification requires a pre-created server `PENDING` order with matching amount and authorized `userId`.
+- **HMAC-SHA256 Cryptographic Verification**: Signature verification utilizing constant-time comparison (`crypto.timingSafeEqual`) to eliminate timing attacks.
+- **Atomic Balance Settlement**: Updates wallet margin balances and inserts immutable transaction records within single ACID database sessions.
+
+---
+
+### 8. User Profile & Exchange Trader Identity
+Trader profile management with personalized client code assignment and security settings.
+
+<p align="center">
+  <img src="frontend/public/Images/Screenshot%202026-08-29%20192815.png" alt="User Profile Details" width="100%" />
+</p>
+
+- **Unique Client Code**: Auto-generated exchange client identifier (e.g. `PT-6A92C6`) for individual trader identity.
+- **Account Metadata Management**: Displays display name, verified email (`sekharsekhar1919@gmail.com`), membership date, mobile phone, and trading bio.
+- **Declarative Sanitization**: Server-side validation and sanitization preventing injection attacks on profile mutations.
+
+---
+
+### 9. Account Analytics, Quick Actions & Multi-Device Session Invalidation
+Account analytics overview with one-click navigation and multi-device session revocation.
+
+<p align="center">
+  <img src="frontend/public/Images/Screenshot%202026-08-29%20192841.png" alt="Account Analytics & Quick Actions" width="100%" />
+</p>
+
+- **Trader Activity Scorecard**: Highlights Available Cash (`₹29,578.45`), Active Holdings count (12 stocks, valuation `₹27,611.45`), Executed Orders count, and Total Outcome (`+₹7,189.90`).
+- **Quick Action Hub**: Direct one-click shortcuts to Deposit Funds, inspect Holdings (12), and review Orders.
+- **Multi-Device Session Invalidation**: Secure Sign Out leveraging `tokenVersion` increments in MongoDB to instantly revoke active JWT sessions across all browsers and devices.
 
 ---
 
 > [!NOTE]
 > **Product Disclaimer & Scope**: **PulseTrade** is an educational paper-trading simulator and portfolio management application. It allows users to practice simulated equity delivery (CNC) trading and track virtual portfolios using market data feeds. It does **not** route live trades to real financial exchanges (such as NSE/BSE) and has no affiliation with Zerodha Broking Ltd. or any registered stock broker.
-
----
-
-## Application UI & Visual Walkthrough
-
-Explore the key interfaces and user experiences across the PulseTrade ecosystem:
-
-### 1. Marketing Portal & User Onboarding
-Intuitive landing page featuring real-time feature overviews and secure HttpOnly cookie authentication.
-
-| Marketing Landing Page | User Registration |
-|:---:|:---:|
-| <img src="frontend/public/Images/Screenshot%202026-08-29%20192352.png" alt="PulseTrade Landing Page" width="100%"/> | <img src="frontend/public/Images/Screenshot%202026-08-29%20192458.png" alt="User Registration" width="100%"/> |
-
-| User Sign-In Portal |
-|:---:|
-| <img src="frontend/public/Images/Screenshot%202026-08-29%20192425.png" alt="User Sign-In" width="80%"/> |
-
----
-
-### 2. Live Trading Terminal & Market Feeds
-Real-time Socket.IO market ticker streaming live prices for major indices (NIFTY 50, SENSEX) and 50-stock tradable watchlists.
-
-| Trading Terminal Overview & Margins | Real-Time Watchlist Feed |
-|:---:|:---:|
-| <img src="frontend/public/Images/Screenshot%202026-08-29%20192556.png" alt="Trading Terminal Dashboard" width="100%"/> | <img src="frontend/public/Images/feature_watchlist.png" alt="Live Watchlist Feed" width="100%"/> |
-
----
-
-### 3. Market Depth, Technical Analytics & Order Execution
-Interactive technical charts, bid/ask depth visualization, and concurrency-safe BUY/SELL execution modals for MARKET and LIMIT orders.
-
-| Technical Analytics & Market Depth | Interactive Order Execution Modals |
-|:---:|:---:|
-| <img src="frontend/public/Images/feature_analytics.png" alt="Market Depth & Analytics" width="100%"/> | <img src="frontend/public/Images/feature_orders.png" alt="BUY and SELL Order Execution" width="100%"/> |
-
----
-
-### 4. Portfolio, Holdings & Open Positions
-Multi-stock holdings ledger with automated weighted average cost-basis recalculation, daily/net P&L telemetry, intraday positions tracking, and dynamic asset allocation charts.
-
-| Portfolio Holdings Ledger (12 Stocks) | Open Intraday & Delivery Positions |
-|:---:|:---:|
-| <img src="frontend/public/Images/Screenshot%202026-08-29%20192648.png" alt="Holdings Portfolio" width="100%"/> | <img src="frontend/public/Images/Screenshot%202026-08-29%20192719.png" alt="Open Positions" width="100%"/> |
-
-| Dynamic Portfolio Performance & Asset Allocation |
-|:---:|
-| <img src="frontend/public/Images/feature_portfolio.png" alt="Portfolio Valuation & Allocation" width="80%"/> |
-
----
-
-### 5. Funds Management & Razorpay Payment Gateway
-Real-time cash margin tracking, simulated deposits via Razorpay Sandbox with HMAC-SHA256 signature verification, and atomic balance ledger updates.
-
-| Funds & Capital Management Dashboard | Razorpay Sandbox Checkout Modal |
-|:---:|:---:|
-| <img src="frontend/public/Images/Screenshot%202026-08-29%20192744.png" alt="Funds & Margins Management" width="100%"/> | <img src="frontend/public/Images/Screenshot%202026-08-29%20193037.png" alt="Razorpay Sandbox Deposit" width="100%"/> |
-
----
-
-### 6. User Profile & Account Analytics
-Comprehensive account management with unique client code identifiers, trading bio, session revocation controls, and overall portfolio metrics.
-
-| User Account Information | Account Overview & Quick Actions |
-|:---:|:---:|
-| <img src="frontend/public/Images/Screenshot%202026-08-29%20192815.png" alt="User Profile Details" width="100%"/> | <img src="frontend/public/Images/Screenshot%202026-08-29%20192841.png" alt="Account Metrics & Quick Actions" width="100%"/> |
 
 ---
 
